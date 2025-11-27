@@ -1,0 +1,16 @@
+server:
+  port: 10010
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+
+
+
+
+#http://localhost:10010/doc.html
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
