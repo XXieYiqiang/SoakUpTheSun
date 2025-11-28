@@ -5,6 +5,12 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
     username: root
     password: 123456
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: redis
+      timeout: 50000
 
 
 
