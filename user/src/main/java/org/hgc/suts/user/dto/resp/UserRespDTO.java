@@ -14,6 +14,12 @@ public class UserRespDTO {
     private Long id;
 
     /**
+     * 用户账号
+     */
+    private String userAccount;
+
+
+    /**
      * 用户名
      */
     private String userName;

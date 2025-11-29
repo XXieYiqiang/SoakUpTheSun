@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import org.hgc.suts.user.dao.entity.UserDO;
 import org.hgc.suts.user.dto.req.UserLoginReqDTO;
 import org.hgc.suts.user.dto.req.UserRegisterReqDTO;
+import org.hgc.suts.user.dto.req.UserUpdateReqDTO;
 import org.hgc.suts.user.dto.resp.UserLoginRespDTO;
+import org.hgc.suts.user.dto.resp.UserRespDTO;
 
 
 /**
@@ -38,6 +40,22 @@ public interface UserService extends IService<UserDO> {
      */
     UserLoginRespDTO login(UserLoginReqDTO requestParam);
 
+
+    /**
+     * 根据用户名查询用户信息
+     *
+     * @param username 用户名
+     * @return 用户返回实体
+     */
+    UserRespDTO getUserByUsername(String username);
+
+
+    /**
+     * 根据用户名修改用户
+     *
+     * @param requestParam 修改用户请求参数
+     */
+    void updateUser(UserUpdateReqDTO requestParam);
 
     /**
      * 对密码进行加盐加密

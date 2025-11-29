@@ -6,25 +6,31 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.lang.UUID;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import lombok.Value;
+import org.hgc.suts.user.common.biz.user.UserContext;
 import org.hgc.suts.user.common.constant.RedisCacheConstant;
+import org.hgc.suts.user.common.enums.UserErrorCodeEnum;
 import org.hgc.suts.user.common.errorcode.BaseErrorCode;
 import org.hgc.suts.user.common.exception.ClientException;
+import org.hgc.suts.user.common.exception.ServiceException;
 import org.hgc.suts.user.dao.entity.UserDO;
 import org.hgc.suts.user.dao.mapper.UserMapper;
 import org.hgc.suts.user.dto.req.UserLoginReqDTO;
 import org.hgc.suts.user.dto.req.UserRegisterReqDTO;
+import org.hgc.suts.user.dto.req.UserUpdateReqDTO;
 import org.hgc.suts.user.dto.resp.UserLoginRespDTO;
 import org.hgc.suts.user.dto.resp.UserRespDTO;
 import org.hgc.suts.user.service.UserService;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -32,11 +38,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.hgc.suts.user.common.constant.RedisCacheConstant.USER_LOGIN_KEY_TOKEN_TO_USER;
 import static org.hgc.suts.user.common.constant.RedisCacheConstant.USER_LOGIN_KEY_USER_TO_TOKEN;
+import static org.hgc.suts.user.common.enums.UserErrorCodeEnum.USER_NULL;
 
 /**
 * @author 谢毅强
@@ -100,8 +108,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             throw new ClientException("该用户不存在");
         }
 
-
-
         Map<Object, Object> hasLoginMap = stringRedisTemplate.opsForHash().entries(USER_LOGIN_KEY_USER_TO_TOKEN + requestParam.getUserAccount());
         // 脱敏的用户信息
         UserRespDTO userRespDTO = BeanUtil.toBean(userDO, UserRespDTO.class);
@@ -124,6 +130,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         stringRedisTemplate.opsForValue().set(USER_LOGIN_KEY_TOKEN_TO_USER + token, requestParam.getUserAccount(),30L, TimeUnit.HOURS);
 
         return new UserLoginRespDTO(token);
+    }
+
+    @Override
+    public UserRespDTO getUserByUsername(String userAccount) {
+        LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
+                .eq(UserDO::getUserAccount, userAccount);
+        UserDO userDO = baseMapper.selectOne(queryWrapper);
+        if (userDO == null) {
+            throw new ServiceException(USER_NULL);
+        }
+        UserRespDTO result = new UserRespDTO();
+        BeanUtils.copyProperties(userDO, result);
+        return result;
+    }
+
+    @Override
+    public void updateUser(UserUpdateReqDTO requestParam) {
+        if (!Objects.equals(UserContext.getUserAccount(), requestParam.getUserAccount())) {
+            throw new ClientException("当前登录用户修改请求异常");
+        }
+        LambdaUpdateWrapper<UserDO> updateWrapper = Wrappers.lambdaUpdate(UserDO.class)
+                .eq(UserDO::getUserAccount, requestParam.getUserAccount());
+        baseMapper.update(BeanUtil.toBean(requestParam, UserDO.class), updateWrapper);
+
     }
 
 
