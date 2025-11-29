@@ -15,22 +15,48 @@ import lombok.NoArgsConstructor;
 public class UserInfoDTO {
 
     /**
-     * 用户 ID
+     * id
      */
-    private String userId;
+    private Long userId;
+
+
+    /**
+     * 用户账号
+     */
+    private String userAccount;
 
     /**
      * 用户名
      */
-    private String username;
+    private String userName;
 
     /**
-     * 真实姓名
+     * 头像
      */
-    private String realName;
+    private String userAvatar;
 
     /**
-     * 用户 Token
+     * 简介
      */
-    private String token;
+    private String userProfile;
+
+    /**
+     * 角色
+     */
+    private String userRole;
+
+    /**
+     * 编辑时间
+     */
+    private String editTime;
+
+    /**
+     * 创建时间
+     */
+    private String createTime;
+
+    /**
+     * 更新时间
+     */
+    private String updateTime;
 }
