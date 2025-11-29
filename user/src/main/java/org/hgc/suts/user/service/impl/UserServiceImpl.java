@@ -1,5 +1,6 @@
 package org.hgc.suts.user.service.impl;
 
+import cn.hutool.Hutool;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.lang.UUID;
@@ -7,8 +8,10 @@ import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
+import lombok.Value;
 import org.hgc.suts.user.common.constant.RedisCacheConstant;
 import org.hgc.suts.user.common.errorcode.BaseErrorCode;
 import org.hgc.suts.user.common.exception.ClientException;
@@ -26,12 +29,14 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static org.hgc.suts.user.common.constant.RedisCacheConstant.LOCK_USER_REGISTER_KEY;
-import static org.hgc.suts.user.common.constant.RedisCacheConstant.USER_LOGIN_KEY;
+import static org.hgc.suts.user.common.constant.RedisCacheConstant.USER_LOGIN_KEY_TOKEN_TO_USER;
+import static org.hgc.suts.user.common.constant.RedisCacheConstant.USER_LOGIN_KEY_USER_TO_TOKEN;
 
 /**
 * @author 谢毅强
@@ -58,10 +63,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             throw new ClientException(BaseErrorCode.USER_ACCOUNT_EXIST_ERROR);
         }
         try {
-            int inserted = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
-            if (inserted < 1) {
-                throw new ClientException(BaseErrorCode.USER_SAVE_ERROR);
+            LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class).eq(UserDO::getUserAccount, requestParam.getUserAccount());
+            long count = baseMapper.selectCount(queryWrapper);
+            if (count > 0) {
+                throw new ClientException("用户已存在");
             }
+            UserDO userDO = BeanUtil.toBean(requestParam, UserDO.class);
+            userDO.setUserPassword(getEncryptPassword(requestParam.getUserPassword()));
+            baseMapper.insert(userDO);
             userRegisterCachePenetrationBloomFilter.add(requestParam.getUserAccount());
         } catch (DuplicateKeyException ex) {
             throw new ClientException(BaseErrorCode.USER_ACCOUNT_EXIST_ERROR);
@@ -78,35 +87,75 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
     @Override
     public UserLoginRespDTO login(UserLoginReqDTO requestParam) {
+        if (!hasUserAccount(requestParam.getUserAccount())) {
+            throw new ClientException("该用户不存在");
+        }
         LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
                 .eq(UserDO::getUserAccount, requestParam.getUserAccount())
-                .eq(UserDO::getUserPassword, requestParam.getPassword())
+                .eq(UserDO::getUserPassword, getEncryptPassword(requestParam.getPassword()))
                 .eq(UserDO::getIsDelete, 0);
         UserDO userDO = baseMapper.selectOne(queryWrapper);
-        Map<Object, Object> hasLoginMap = stringRedisTemplate.opsForHash().entries(RedisCacheConstant.USER_LOGIN_KEY + requestParam.getUserAccount());
-        if (CollUtil.isNotEmpty(hasLoginMap)) {
-            stringRedisTemplate.expire(RedisCacheConstant.USER_LOGIN_KEY + requestParam.getUserAccount(), 30L, TimeUnit.MINUTES);
-            String token = hasLoginMap.keySet().stream()
-                    .findFirst()
-                    .map(Object::toString)
-                    .orElseThrow(() -> new ClientException("用户登录错误"));
-            return new UserLoginRespDTO(token);
+
+        if (userDO == null) {
+            throw new ClientException("该用户不存在");
         }
 
-        /*
-          Hash
-          Key：login_用户名
-          Value：
-           Key：token标识
-           Val：JSON 字符串（用户信息）
-         */
-        String uuid = UUID.randomUUID().toString();
-        // 返回脱敏用户信息
+
+
+        Map<Object, Object> hasLoginMap = stringRedisTemplate.opsForHash().entries(USER_LOGIN_KEY_USER_TO_TOKEN + requestParam.getUserAccount());
+        // 脱敏的用户信息
         UserRespDTO userRespDTO = BeanUtil.toBean(userDO, UserRespDTO.class);
-        stringRedisTemplate.opsForHash().put(RedisCacheConstant.USER_LOGIN_KEY + requestParam.getUserAccount(), uuid, JSON.toJSONString(userRespDTO));
-        stringRedisTemplate.expire(RedisCacheConstant.USER_LOGIN_KEY + requestParam.getUserAccount(), 30L, TimeUnit.MINUTES);
-        return new UserLoginRespDTO(uuid);
+        // 构造token
+        String token = UUID.randomUUID().toString();
+        // token数量>=3时
+        if (hasLoginMap.size() >= 3){
+            // 1.删除一个token,通过token-userAccount的映射去找剩余时间最短的删除
+            String tokenToDelete = findTokenWithMinimalTTL(hasLoginMap.keySet(), USER_LOGIN_KEY_TOKEN_TO_USER);
+            if (tokenToDelete != null) {
+                stringRedisTemplate.opsForHash().delete(USER_LOGIN_KEY_USER_TO_TOKEN + requestParam.getUserAccount(), tokenToDelete);
+                }
+            // 2.删除token-userAccount映射
+            stringRedisTemplate.delete(USER_LOGIN_KEY_TOKEN_TO_USER + tokenToDelete);
+        }
+        // 添加token
+        stringRedisTemplate.opsForHash().put(USER_LOGIN_KEY_USER_TO_TOKEN + requestParam.getUserAccount(), token, JSON.toJSONString(userRespDTO));
+        stringRedisTemplate.expire(USER_LOGIN_KEY_USER_TO_TOKEN + requestParam.getUserAccount(), 30L, TimeUnit.HOURS);
+        // 以及建立token-userAccount的映射
+        stringRedisTemplate.opsForValue().set(USER_LOGIN_KEY_TOKEN_TO_USER + token, requestParam.getUserAccount(),30L, TimeUnit.HOURS);
+
+        return new UserLoginRespDTO(token);
     }
+
+
+    @Override
+    public String getEncryptPassword(String userPassword) {
+        // 可导入证书
+        final String SALT="xixi";
+        return DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
+    }
+
+    /**
+     * 寻找时间存在时间最长的token
+     * @param tokens 输入token集合
+     * @param tokenToUserKeyPrefix tokenToUser 的前缀
+     * @return
+     */
+    private String findTokenWithMinimalTTL(Set<Object> tokens, String tokenToUserKeyPrefix) {
+        String minTTLToken = null;
+        long minTTL = Long.MAX_VALUE;
+
+        for (Object tokenObj : tokens) {
+            String token = (String) tokenObj;
+            Long ttl = stringRedisTemplate.getExpire(tokenToUserKeyPrefix + token, TimeUnit.SECONDS);
+            if (ttl != null && ttl >= 0 && ttl < minTTL) {
+                minTTL = ttl;
+                minTTLToken = token;
+            }
+        }
+
+        return minTTLToken;
+    }
+
 
 }
 

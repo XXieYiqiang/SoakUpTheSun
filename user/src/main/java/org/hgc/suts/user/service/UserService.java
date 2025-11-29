@@ -39,4 +39,10 @@ public interface UserService extends IService<UserDO> {
     UserLoginRespDTO login(UserLoginReqDTO requestParam);
 
 
+    /**
+     * 对密码进行加盐加密
+     * @param userPassword 用户密码
+     * @return 返回加盐密码
+     */
+    String getEncryptPassword(String userPassword);
 }

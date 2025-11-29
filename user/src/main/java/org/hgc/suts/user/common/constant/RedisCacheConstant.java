@@ -30,6 +30,7 @@ public class RedisCacheConstant {
     /**
      * 用户登陆key
      */
-    public static final String USER_LOGIN_KEY = "suts:login:";
+    public static final String USER_LOGIN_KEY_USER_TO_TOKEN = "suts:login:UserToToken:";
+    public static final String USER_LOGIN_KEY_TOKEN_TO_USER = "suts:login:TokenToUser:";
 
 }
