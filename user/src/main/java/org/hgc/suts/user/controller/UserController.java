@@ -1,6 +1,7 @@
 package org.hgc.suts.user.controller;
 
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.hgc.suts.user.common.result.Result;
 import org.hgc.suts.user.common.web.Results;
@@ -49,6 +50,15 @@ public class UserController {
     @PutMapping("/api/user")
     public Result<Void> update(@RequestBody UserUpdateReqDTO requestParam) {
         userService.updateUser(requestParam);
+        return Results.success();
+    }
+
+    /**
+     * 登出用户
+     */
+    @PutMapping("/api/user/logout")
+    public Result<Void> logout(HttpServletRequest request) {
+        userService.logout(request);
         return Results.success();
     }
 

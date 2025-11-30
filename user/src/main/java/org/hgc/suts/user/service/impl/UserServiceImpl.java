@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
@@ -114,6 +115,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         // 构造token
         String token = UUID.randomUUID().toString();
         // token数量>=3时
+
+        // todo 修改为lua脚本
         if (hasLoginMap.size() >= 3){
             // 1.删除一个token,通过token-userAccount的映射去找剩余时间最短的删除
             String tokenToDelete = findTokenWithMinimalTTL(hasLoginMap.keySet(), USER_LOGIN_KEY_TOKEN_TO_USER);
@@ -156,6 +159,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
     }
 
+    @Override
+    public void logout(HttpServletRequest request) {
+        String token = request.getHeader("token");
+        if (token == null) {
+            throw new ClientException("该用户未登陆");
+        }
+        try {
+            stringRedisTemplate.opsForHash().delete(USER_LOGIN_KEY_USER_TO_TOKEN + UserContext.getUserAccount(), token);
+            stringRedisTemplate.delete(USER_LOGIN_KEY_TOKEN_TO_USER + token);
+        } catch (Exception ex) {
+            throw new ClientException("用户登出错误,稍后再试");
+        }
+    }
+
 
     @Override
     public String getEncryptPassword(String userPassword) {
@@ -168,7 +185,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * 寻找时间存在时间最长的token
      * @param tokens 输入token集合
      * @param tokenToUserKeyPrefix tokenToUser 的前缀
-     * @return
+     * @return token
      */
     private String findTokenWithMinimalTTL(Set<Object> tokens, String tokenToUserKeyPrefix) {
         String minTTLToken = null;

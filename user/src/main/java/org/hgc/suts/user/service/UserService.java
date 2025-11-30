@@ -2,6 +2,7 @@ package org.hgc.suts.user.service;
 
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.hgc.suts.user.dao.entity.UserDO;
 import org.hgc.suts.user.dto.req.UserLoginReqDTO;
 import org.hgc.suts.user.dto.req.UserRegisterReqDTO;
@@ -56,6 +57,12 @@ public interface UserService extends IService<UserDO> {
      * @param requestParam 修改用户请求参数
      */
     void updateUser(UserUpdateReqDTO requestParam);
+
+    /**
+     * 登出账号
+     * @param request 登出请求参数
+     */
+    void logout(HttpServletRequest request);
 
     /**
      * 对密码进行加盐加密
