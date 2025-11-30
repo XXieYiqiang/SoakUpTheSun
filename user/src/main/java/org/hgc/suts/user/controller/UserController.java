@@ -6,6 +6,7 @@ import org.hgc.suts.user.common.result.Result;
 import org.hgc.suts.user.common.web.Results;
 import org.hgc.suts.user.dto.req.UserLoginReqDTO;
 import org.hgc.suts.user.dto.req.UserRegisterReqDTO;
+import org.hgc.suts.user.dto.req.UserUpdateReqDTO;
 import org.hgc.suts.user.dto.resp.UserLoginRespDTO;
 import org.hgc.suts.user.dto.resp.UserRespDTO;
 import org.hgc.suts.user.service.UserService;
@@ -40,6 +41,17 @@ public class UserController {
     @GetMapping("/api/user/{username}")
     public Result<UserRespDTO> getUserByUsername(@PathVariable("username") String username) {
         return Results.success(userService.getUserByUsername(username));
+    }
+
+
+
+    /**
+     * 修改用户
+     */
+    @PutMapping("/api/short-link/admin/v1/user")
+    public Result<Void> update(@RequestBody UserUpdateReqDTO requestParam) {
+        userService.updateUser(requestParam);
+        return Results.success();
     }
 
 }
