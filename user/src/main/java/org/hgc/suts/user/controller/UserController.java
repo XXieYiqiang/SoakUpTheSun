@@ -43,12 +43,10 @@ public class UserController {
         return Results.success(userService.getUserByUsername(username));
     }
 
-
-
     /**
      * 修改用户
      */
-    @PutMapping("/api/short-link/admin/v1/user")
+    @PutMapping("/api/user")
     public Result<Void> update(@RequestBody UserUpdateReqDTO requestParam) {
         userService.updateUser(requestParam);
         return Results.success();
