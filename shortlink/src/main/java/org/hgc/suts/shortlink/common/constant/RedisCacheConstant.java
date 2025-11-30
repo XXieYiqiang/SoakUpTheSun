@@ -1,4 +1,5 @@
-package org.hgc.suts.picture.common.constant;
+
+package org.hgc.suts.shortlink.common.constant;
 
 /**
  * Redis 缓存常量类

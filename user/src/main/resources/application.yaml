@@ -1,5 +1,5 @@
 server:
-  port: 10011
+  port: 10012
 spring:
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
