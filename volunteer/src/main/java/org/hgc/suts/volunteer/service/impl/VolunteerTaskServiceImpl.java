@@ -12,6 +12,8 @@ import org.hgc.suts.volunteer.common.enums.VolunteerTaskStatusEnum;
 import org.hgc.suts.volunteer.common.exception.ClientException;
 import org.hgc.suts.volunteer.dao.entity.VolunteerTaskDO;
 import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReq;
+import org.hgc.suts.volunteer.mq.event.VolunteerTaskExecuteEvent;
+import org.hgc.suts.volunteer.mq.producer.VolunteerTaskActualExecuteProducer;
 import org.hgc.suts.volunteer.service.VolunteerTaskService;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskMapper;
 import org.hgc.suts.volunteer.service.handler.excel.RowCountListener;
@@ -49,6 +51,7 @@ public class VolunteerTaskServiceImpl extends ServiceImpl<VolunteerTaskMapper, V
             new SynchronousQueue<>(),
             new ThreadPoolExecutor.DiscardPolicy()
     );
+    private final VolunteerTaskActualExecuteProducer volunteerTaskActualExecuteProducer;
 
 
     @Override
@@ -78,6 +81,12 @@ public class VolunteerTaskServiceImpl extends ServiceImpl<VolunteerTaskMapper, V
         RBlockingDeque<Object> blockingDeque = redissonClient.getBlockingDeque(TASK_SEND_GUARANTEE_QUEUE);
         RDelayedQueue<Object> delayedQueue = redissonClient.getDelayedQueue(blockingDeque);
         delayedQueue.offer(delayJsonObject, 1, TimeUnit.SECONDS);
+
+        VolunteerTaskExecuteEvent volunteerTaskExecuteEvent = VolunteerTaskExecuteEvent.builder()
+                .volunteerTaskId(volunteerTaskDO.getId())
+                .build();
+
+        volunteerTaskActualExecuteProducer.sendMessage(volunteerTaskExecuteEvent);
     }
     @Override
     public void refreshVolunteerTaskSendNum(JSONObject delayJsonObject) {
@@ -90,7 +99,7 @@ public class VolunteerTaskServiceImpl extends ServiceImpl<VolunteerTaskMapper, V
         }
         int totalRows = listener.getRowCount();
 
-        // 刷新优惠券推送记录中发送行数
+        // 刷新志愿者推送记录中发送行数
         VolunteerTaskDO volunteerTaskDO = VolunteerTaskDO.builder()
                 .id(delayJsonObject.getLong("volunteerTaskId"))
                 .sendNum(totalRows)

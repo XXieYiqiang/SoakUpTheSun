@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper">
+
+    <resultMap id="BaseResultMap" type="org.hgc.suts.volunteer.dao.entity.VolunteerUserDO">
+            <id property="id" column="id" />
+            <result property="name" column="name" />
+            <result property="sex" column="sex" />
+            <result property="phone" column="phone" />
+            <result property="birthday" column="birthday" />
+            <result property="location" column="location" />
+            <result property="score" column="score" />
+            <result property="startTime" column="start_time" />
+            <result property="endTime" column="end_time" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+            <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,sex,phone,birthday,location,start_time,end_time,
+        score
+    </sql>
+</mapper>

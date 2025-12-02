@@ -42,7 +42,7 @@ public class VolunteerTaskDO {
     private String failFileAddress;
 
     /**
-     * 发放优惠券数量
+     * 发放志愿者数量
      */
     private Integer sendNum;
 

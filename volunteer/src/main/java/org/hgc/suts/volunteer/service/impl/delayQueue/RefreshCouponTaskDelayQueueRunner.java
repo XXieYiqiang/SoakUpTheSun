@@ -41,7 +41,7 @@ class RefreshCouponTaskDelayQueueRunner implements CommandLineRunner {
                             // 获取延迟队列已到达时间元素
                             JSONObject delayJsonObject = blockingDeque.take();
                             if (delayJsonObject != null) {
-                                // 获取优惠券推送记录，查看发送条数是否已经有值，有的话代表上面线程池已经处理完成，无需再处理
+                                // 获取志愿者推送记录，查看发送条数是否已经有值，有的话代表上面线程池已经处理完成，无需再处理
                                 VolunteerTaskDO volunteerTaskDO = volunteerTaskMapper.selectById(delayJsonObject.getLong("volunteerTaskId"));
                                 if (volunteerTaskDO.getSendNum() == null) {
                                     volunteerTaskService.refreshVolunteerTaskSendNum(delayJsonObject);
