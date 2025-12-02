@@ -69,6 +69,8 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
     private void batchSaveVolunteer() {
         try {
             volunteerUserMapper.insert(volunteerUserDOList,volunteerUserDOList.size());
+            // 未捕获到异常则删除原来的列表内容
+            volunteerUserDOList.clear();
         } catch (Exception ex) {
             Throwable cause = ex.getCause();
             if (cause instanceof BatchExecutorException) {
@@ -80,6 +82,8 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                 volunteerUserDOList.forEach(each -> {
                     try {
                         volunteerUserMapper.insert(each);
+                        // 删除原来地列表内容
+                        volunteerUserDOList.clear();
                     } catch (Exception ignored) {
                         boolean hasReceived = volunteerUserMapper.selectById(each.getId())!=null;
                         if (hasReceived) {
@@ -102,8 +106,8 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                 // 批量新增 t_volunteer_task_fail 表
                 volunteerTaskFailMapper.insert(volunteerTaskFailDOList, volunteerTaskFailDOList.size());
 
-                // 删除已经重复的内容
-                volunteerUserDOList.removeAll(toRemove);
+                // 删除原来的列表内容
+                volunteerUserDOList.clear();
             }
 
             throw ex;
