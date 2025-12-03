@@ -15,6 +15,7 @@ import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
 import org.hgc.suts.volunteer.mq.base.MessageWrapper;
 import org.hgc.suts.volunteer.mq.event.VolunteerTaskExecuteEvent;
+import org.hgc.suts.volunteer.mq.producer.VolunteerUserEsSyncProducer;
 import org.hgc.suts.volunteer.service.VolunteerUserService;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -51,8 +52,7 @@ public class VolunteerTaskExecuteConsumer implements RocketMQListener<MessageWra
                 volunteerTaskDO,
                 stringRedisTemplate,
                 volunteerUserMapper,
-                volunteerTaskFailMapper,
-                messageWrapper.getMessage()
+                volunteerTaskFailMapper
         );
         EasyExcel.read(volunteerTaskDO.getFileAddress(), VolunteerExcelObject.class, readExcelDistributionListener).sheet().doRead();
 

@@ -14,7 +14,6 @@ import org.hgc.suts.volunteer.dao.entity.VolunteerTaskFailDO;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskFailMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
-import org.hgc.suts.volunteer.mq.event.VolunteerTaskExecuteEvent;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.ArrayList;
@@ -32,8 +31,6 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
     private final VolunteerUserMapper volunteerUserMapper;
 
     private final VolunteerTaskFailMapper volunteerTaskFailMapper;
-
-    private final VolunteerTaskExecuteEvent event;
 
     private final List<VolunteerUserDO> volunteerUserDOList=new ArrayList<>();
 
@@ -82,8 +79,6 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                 volunteerUserDOList.forEach(each -> {
                     try {
                         volunteerUserMapper.insert(each);
-                        // 删除原来地列表内容
-                        volunteerUserDOList.clear();
                     } catch (Exception ignored) {
                         boolean hasReceived = volunteerUserMapper.selectById(each.getId())!=null;
                         if (hasReceived) {
@@ -93,7 +88,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                                     .put("cause", "该手机号已经注册了")
                                     .build();
                             VolunteerTaskFailDO volunteerTaskFailDO = VolunteerTaskFailDO.builder()
-                                    .batchId(event.getVolunteerTaskId())
+                                    .batchId(volunteerTaskDO.getId())
                                     .jsonObject(JSON.toJSONString(objectMap))
                                     .build();
                             volunteerTaskFailDOList.add(volunteerTaskFailDO);
