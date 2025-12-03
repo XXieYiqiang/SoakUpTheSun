@@ -15,6 +15,7 @@ import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
 import org.hgc.suts.volunteer.mq.base.MessageWrapper;
 import org.hgc.suts.volunteer.mq.event.VolunteerTaskExecuteEvent;
+import org.hgc.suts.volunteer.mq.producer.VolunteerUserEsSyncProducer;
 import org.hgc.suts.volunteer.service.VolunteerUserService;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -32,10 +33,11 @@ public class VolunteerTaskExecuteConsumer implements RocketMQListener<MessageWra
     private final StringRedisTemplate stringRedisTemplate;
     private final VolunteerUserMapper volunteerUserMapper;
     private final VolunteerTaskFailMapper volunteerTaskFailMapper;
+    private final VolunteerUserEsSyncProducer volunteerUserEsSyncProducer;
 
     @Override
     public void onMessage(MessageWrapper<VolunteerTaskExecuteEvent> messageWrapper) {
-// 开头打印日志，平常可 Debug 看任务参数，线上可报平安（比如消息是否消费，重新投递时获取参数等）
+        // 开头打印日志，平常可 Debug 看任务参数，线上可报平安（比如消息是否消费，重新投递时获取参数等）
         log.info("[消费者] 志愿者推送任务正式执行 - 执行消费逻辑，消息体：{}", JSON.toJSONString(messageWrapper));
 
         // 判断志愿者任务发送状态是否为执行中，如果不是有可能是被取消状态
@@ -52,7 +54,7 @@ public class VolunteerTaskExecuteConsumer implements RocketMQListener<MessageWra
                 stringRedisTemplate,
                 volunteerUserMapper,
                 volunteerTaskFailMapper,
-                messageWrapper.getMessage()
+                volunteerUserEsSyncProducer
         );
         EasyExcel.read(volunteerTaskDO.getFileAddress(), VolunteerExcelObject.class, readExcelDistributionListener).sheet().doRead();
 

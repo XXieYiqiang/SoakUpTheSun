@@ -49,7 +49,8 @@
         <rocketmq-spring-boot-starter.version>2.3.0</rocketmq-spring-boot-starter.version>
         <spotless-maven-plugin.version>2.22.1</spotless-maven-plugin.version>
         <maven-compiler-plugin.version>3.6.1</maven-compiler-plugin.version>
-        <elasticsearch-spring-boot-starter.version>2.6.12</elasticsearch-spring-boot-starter.version>
+        <elasticsearch-spring-boot-starter.version>8.15.3</elasticsearch-spring-boot-starter.version>
+        <elasticsearch.version>8.15.3</elasticsearch.version>
     </properties>
     <dependencies>
         <dependency>
@@ -168,11 +169,10 @@
 
 
 
-        <!--        <dependency>-->
-        <!--            <groupId>org.springframework.boot</groupId>-->
-        <!--            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>-->
-        <!--            <version>${elasticsearch-spring-boot-starter.version}</version>-->
-        <!--        </dependency>-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

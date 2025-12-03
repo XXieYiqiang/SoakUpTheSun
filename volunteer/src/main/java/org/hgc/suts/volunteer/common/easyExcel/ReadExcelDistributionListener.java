@@ -14,7 +14,9 @@ import org.hgc.suts.volunteer.dao.entity.VolunteerTaskFailDO;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskFailMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
-import org.hgc.suts.volunteer.mq.event.VolunteerTaskExecuteEvent;
+import org.hgc.suts.volunteer.mq.event.VolunteerUserEsSyncEvent;
+import org.hgc.suts.volunteer.mq.producer.VolunteerUserEsSyncProducer;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.ArrayList;
@@ -33,7 +35,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
 
     private final VolunteerTaskFailMapper volunteerTaskFailMapper;
 
-    private final VolunteerTaskExecuteEvent event;
+    private final VolunteerUserEsSyncProducer volunteerUserEsSyncProducer;
 
     private final List<VolunteerUserDO> volunteerUserDOList=new ArrayList<>();
 
@@ -69,6 +71,18 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
     private void batchSaveVolunteer() {
         try {
             volunteerUserMapper.insert(volunteerUserDOList,volunteerUserDOList.size());
+            // 未捕获到异常,把列表推送到es新增user的消息队列中
+            if (!volunteerUserDOList.isEmpty()) {
+                VolunteerUserEsSyncEvent volunteerUserEsSyncEvent = VolunteerUserEsSyncEvent.builder()
+                        .batchId(volunteerTaskDO.getId())
+                        // 【注意点】使用 new ArrayList() 传递副本，防止多线程问题或列表在发送前被清理
+                        .userList(new ArrayList<>(volunteerUserDOList))
+                        .build();
+
+                volunteerUserEsSyncProducer.sendMessage(volunteerUserEsSyncEvent);
+            }
+            // 清空userList
+            volunteerUserDOList.clear();
         } catch (Exception ex) {
             Throwable cause = ex.getCause();
             if (cause instanceof BatchExecutorException) {
@@ -80,32 +94,44 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                 volunteerUserDOList.forEach(each -> {
                     try {
                         volunteerUserMapper.insert(each);
-                    } catch (Exception ignored) {
-                        boolean hasReceived = volunteerUserMapper.selectById(each.getId())!=null;
-                        if (hasReceived) {
-                            // 添加到 t_volunteer_task_fail 并标记错误原因，方便后续查看未成功发送的原因和记录
-                            Map<Object, Object> objectMap = MapUtil.builder()
-                                    .put("phone", each.getPhone())
-                                    .put("cause", "该手机号已经注册了")
-                                    .build();
-                            VolunteerTaskFailDO volunteerTaskFailDO = VolunteerTaskFailDO.builder()
-                                    .batchId(event.getVolunteerTaskId())
-                                    .jsonObject(JSON.toJSONString(objectMap))
-                                    .build();
-                            volunteerTaskFailDOList.add(volunteerTaskFailDO);
-                            // 从 volunteerUserDOList 中删除已经存在的记录
-                            toRemove.add(each);
-                        }
+                    } catch (Exception ex2) {
+                        // 添加到 t_volunteer_task_fail 并标记错误原因，方便后续查看未成功发送的原因和记录
+                        Map<Object, Object> objectMap = MapUtil.builder()
+                                .put("phone", each.getPhone())
+                                .put("name", each.getName())
+                                .put("cause", ex2.getMessage())
+                                .build();
+                        VolunteerTaskFailDO volunteerTaskFailDO = VolunteerTaskFailDO.builder()
+                                .batchId(volunteerTaskDO.getId())
+                                .jsonObject(JSON.toJSONString(objectMap))
+                                .build();
+                        volunteerTaskFailDOList.add(volunteerTaskFailDO);
+                        // 从 volunteerUserDOList 中删除已经存在的记录
+                        toRemove.add(each);
                     }
                 });
 
                 // 批量新增 t_volunteer_task_fail 表
                 volunteerTaskFailMapper.insert(volunteerTaskFailDOList, volunteerTaskFailDOList.size());
-
-                // 删除已经重复的内容
+                // 把未添加成功的记录从列表中删除
                 volunteerUserDOList.removeAll(toRemove);
-            }
+                // 把成功添加的记录推送到消息队列中
+                if (!volunteerUserDOList.isEmpty()) {
+                    VolunteerUserEsSyncEvent volunteerUserEsSyncEvent = VolunteerUserEsSyncEvent.builder()
+                            .batchId(volunteerTaskDO.getId())
+                            // 【注意点】使用 new ArrayList() 传递副本，防止多线程问题或列表在发送前被清理
+                            .userList(new ArrayList<>(volunteerUserDOList))
+                            .build();
 
+                    volunteerUserEsSyncProducer.sendMessage(volunteerUserEsSyncEvent);
+                }
+
+                // 删除原来的列表内容
+                volunteerUserDOList.clear();
+
+                // 错误降级后应当返回，否则无法正常同步redis.
+                return;
+            }
             throw ex;
         }
     }

@@ -11,6 +11,10 @@ spring:
       port: 6379
       password: redis
       timeout: 50000
+  elasticsearch:
+    uris: http://localhost:9200
+    username: elastic
+    password: 123456
 
 rocketmq:
   name-server: 127.0.0.1:9876
