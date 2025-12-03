@@ -33,4 +33,12 @@ public class VolunteerExcelObject {
     @ColumnWidth(30)
     @ExcelProperty("评分")
     private Double score;
+
+    @ColumnWidth(30)
+    @ExcelProperty("开始时间")
+    private String startTime;
+
+    @ColumnWidth(30)
+    @ExcelProperty("结束时间")
+    private String endTime;
 }
