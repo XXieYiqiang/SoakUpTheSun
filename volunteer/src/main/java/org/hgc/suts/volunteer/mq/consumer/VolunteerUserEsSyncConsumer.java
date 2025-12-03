@@ -66,7 +66,7 @@ public class VolunteerUserEsSyncConsumer implements RocketMQListener<MessageWrap
                 // 记录错误日志，统计失败的条数，方便排查
                 log.error("[消费者] ES批量写入存在失败，批次ID: {}", event.getBatchId());
 
-                //测试使用
+//                测试使用
 //                result.items().stream()
 //                        .filter(item -> item.error() != null)
 //                        .forEach(item -> {

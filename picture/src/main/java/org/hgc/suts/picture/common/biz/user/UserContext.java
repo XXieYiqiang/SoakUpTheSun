@@ -2,6 +2,8 @@ package org.hgc.suts.picture.common.biz.user;
 
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
 @Component
 public class UserContext {
 
@@ -43,6 +45,30 @@ public class UserContext {
     public static String getUserName() {
         UserInfoDTO user = USER_HOLDER.get();
         return user != null ? user.getUserName() : null;
+    }
+
+    /**
+     * 获取用户性别
+     */
+    public static Integer getUserSex() {
+        UserInfoDTO user = USER_HOLDER.get();
+        return user != null ? user.getSex() : null;
+    }
+
+    /**
+     * 获取用户性别
+     */
+    public static LocalDateTime getBirthday() {
+        UserInfoDTO user = USER_HOLDER.get();
+        return user != null ? user.getBirthday() : null;
+    }
+
+    /**
+     * 获取用户地址
+     */
+    public static String getLocation() {
+        UserInfoDTO user = USER_HOLDER.get();
+        return user != null ? user.getLocation() : null;
     }
 
     /**
