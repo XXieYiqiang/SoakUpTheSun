@@ -33,6 +33,7 @@ public class VolunteerTaskExecuteConsumer implements RocketMQListener<MessageWra
     private final StringRedisTemplate stringRedisTemplate;
     private final VolunteerUserMapper volunteerUserMapper;
     private final VolunteerTaskFailMapper volunteerTaskFailMapper;
+    private final VolunteerUserEsSyncProducer volunteerUserEsSyncProducer;
 
     @Override
     public void onMessage(MessageWrapper<VolunteerTaskExecuteEvent> messageWrapper) {
@@ -52,7 +53,8 @@ public class VolunteerTaskExecuteConsumer implements RocketMQListener<MessageWra
                 volunteerTaskDO,
                 stringRedisTemplate,
                 volunteerUserMapper,
-                volunteerTaskFailMapper
+                volunteerTaskFailMapper,
+                volunteerUserEsSyncProducer
         );
         EasyExcel.read(volunteerTaskDO.getFileAddress(), VolunteerExcelObject.class, readExcelDistributionListener).sheet().doRead();
 

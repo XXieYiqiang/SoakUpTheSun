@@ -14,6 +14,8 @@ import org.hgc.suts.volunteer.dao.entity.VolunteerTaskFailDO;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskFailMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
+import org.hgc.suts.volunteer.mq.event.VolunteerUserEsSyncEvent;
+import org.hgc.suts.volunteer.mq.producer.VolunteerUserEsSyncProducer;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.ArrayList;
@@ -31,6 +33,8 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
     private final VolunteerUserMapper volunteerUserMapper;
 
     private final VolunteerTaskFailMapper volunteerTaskFailMapper;
+
+    private final VolunteerUserEsSyncProducer volunteerUserEsSyncProducer;
 
     private final List<VolunteerUserDO> volunteerUserDOList=new ArrayList<>();
 
@@ -66,7 +70,17 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
     private void batchSaveVolunteer() {
         try {
             volunteerUserMapper.insert(volunteerUserDOList,volunteerUserDOList.size());
-            // 未捕获到异常则删除原来的列表内容
+            // 未捕获到异常,把列表推送到es新增user的消息队列中
+            if (!volunteerUserDOList.isEmpty()) {
+                VolunteerUserEsSyncEvent volunteerUserEsSyncEvent = VolunteerUserEsSyncEvent.builder()
+                        .batchId(volunteerTaskDO.getId())
+                        // 【注意点】使用 new ArrayList() 传递副本，防止多线程问题或列表在发送前被清理
+                        .userList(new ArrayList<>(volunteerUserDOList))
+                        .build();
+
+                volunteerUserEsSyncProducer.sendMessage(volunteerUserEsSyncEvent);
+            }
+            // 清空userList
             volunteerUserDOList.clear();
         } catch (Exception ex) {
             Throwable cause = ex.getCause();
@@ -100,6 +114,18 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
 
                 // 批量新增 t_volunteer_task_fail 表
                 volunteerTaskFailMapper.insert(volunteerTaskFailDOList, volunteerTaskFailDOList.size());
+                // 把未添加成功的记录从列表中删除
+                volunteerUserDOList.removeAll(toRemove);
+                // 把成功添加的记录推送到消息队列中
+                if (!volunteerUserDOList.isEmpty()) {
+                    VolunteerUserEsSyncEvent volunteerUserEsSyncEvent = VolunteerUserEsSyncEvent.builder()
+                            .batchId(volunteerTaskDO.getId())
+                            // 【注意点】使用 new ArrayList() 传递副本，防止多线程问题或列表在发送前被清理
+                            .userList(new ArrayList<>(volunteerUserDOList))
+                            .build();
+
+                    volunteerUserEsSyncProducer.sendMessage(volunteerUserEsSyncEvent);
+                }
 
                 // 删除原来的列表内容
                 volunteerUserDOList.clear();
