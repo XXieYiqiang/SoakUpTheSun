@@ -3,7 +3,8 @@ package org.hgc.suts.volunteer.controller;
 import lombok.RequiredArgsConstructor;
 import org.hgc.suts.volunteer.common.result.Result;
 import org.hgc.suts.volunteer.common.web.Results;
-import org.hgc.suts.volunteer.dto.req.VolunteerMatchReq;
+import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReqDTO;
+import org.hgc.suts.volunteer.dto.req.VolunteerMatchReqDTO;
 import org.hgc.suts.volunteer.dto.resp.VolunteerMatchResp;
 import org.hgc.suts.volunteer.service.VolunteerTaskService;
 import org.hgc.suts.volunteer.service.VolunteerUserService;
@@ -22,11 +23,22 @@ public class VolunteerUserController {
 
     private final VolunteerUserService volunteerUserService;
 
+    private final VolunteerTaskService volunteerTaskService;
+
+    /**
+     * 新增志愿者任务
+     */
+    @PostMapping("/api/volunteer/volunteer-task/create")
+    public Result<Void> createVolunteerTask(@RequestBody VolunteerCreateTaskReqDTO requestParam) {
+        volunteerTaskService.createVolunteerTask(requestParam);
+        return Results.success();
+    }
+
     /**
      * 匹配志愿者
      */
     @PostMapping("/api/volunteer/matchVolunteer")
-    public Result<List<VolunteerMatchResp>> createVolunteerTask(@RequestBody VolunteerMatchReq requestParam) {
+    public Result<List<VolunteerMatchResp>> createVolunteerTask(@RequestBody VolunteerMatchReqDTO requestParam) {
 
         return Results.success(volunteerUserService.matchVolunteer(requestParam));
     }

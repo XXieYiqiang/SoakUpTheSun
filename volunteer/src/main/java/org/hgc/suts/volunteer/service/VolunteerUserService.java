@@ -2,7 +2,7 @@ package org.hgc.suts.volunteer.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
-import org.hgc.suts.volunteer.dto.req.VolunteerMatchReq;
+import org.hgc.suts.volunteer.dto.req.VolunteerMatchReqDTO;
 import org.hgc.suts.volunteer.dto.resp.VolunteerMatchResp;
 
 import java.util.List;
@@ -16,8 +16,8 @@ public interface VolunteerUserService extends IService<VolunteerUserDO> {
 
     /**
      * 匹配志愿者
-     * @param volunteerMatchReq 匹配请求参数
+     * @param volunteerMatchReqDTO 匹配请求参数
      * @return 返回示个志愿者
      */
-    List<VolunteerMatchResp> matchVolunteer(VolunteerMatchReq volunteerMatchReq);
+    List<VolunteerMatchResp> matchVolunteer(VolunteerMatchReqDTO volunteerMatchReqDTO);
 }

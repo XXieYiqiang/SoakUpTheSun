@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.hgc.suts.volunteer.common.biz.user.UserContext;
 import org.hgc.suts.volunteer.common.exception.ClientException;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
-import org.hgc.suts.volunteer.dto.req.VolunteerMatchReq;
+import org.hgc.suts.volunteer.dto.req.VolunteerMatchReqDTO;
 import org.hgc.suts.volunteer.dto.resp.VolunteerMatchResp;
 import org.hgc.suts.volunteer.service.VolunteerUserService;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
@@ -44,7 +44,7 @@ public class VolunteerUserServiceImpl extends ServiceImpl<VolunteerUserMapper, V
 
 
     @Override
-    public List<VolunteerMatchResp> matchVolunteer(VolunteerMatchReq requestParam) {
+    public List<VolunteerMatchResp> matchVolunteer(VolunteerMatchReqDTO requestParam) {
 
         // 1. 当前用户的数据参数
         // 计算当前用户的年龄
