@@ -7,13 +7,15 @@
     <resultMap id="BaseResultMap" type="org.hgc.suts.volunteer.dao.entity.VolunteerRatingDO">
             <id property="id" column="id" />
             <result property="userId" column="user_id" />
+            <result property="volunteerId" column="volunteer_id"/>
             <result property="rating" column="rating" />
+            <result property="isCalculated" column="is_calculated"/>
             <result property="createTime" column="create_time" />
             <result property="updateTime" column="update_time" />
             <result property="delFlag" column="del_flag" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,rating,create_time,update_time,del_flag
+        id,user_id,volunteer_id,rating,is_calculated,create_time,update_time,del_flag
     </sql>
 </mapper>

@@ -5,7 +5,9 @@ import org.hgc.suts.volunteer.common.result.Result;
 import org.hgc.suts.volunteer.common.web.Results;
 import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReqDTO;
 import org.hgc.suts.volunteer.dto.req.VolunteerMatchReqDTO;
+import org.hgc.suts.volunteer.dto.req.VolunteerRatingReqDTO;
 import org.hgc.suts.volunteer.dto.resp.VolunteerMatchResp;
+import org.hgc.suts.volunteer.service.VolunteerRatingService;
 import org.hgc.suts.volunteer.service.VolunteerTaskService;
 import org.hgc.suts.volunteer.service.VolunteerUserService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +27,8 @@ public class VolunteerUserController {
 
     private final VolunteerTaskService volunteerTaskService;
 
+    private final VolunteerRatingService volunteerRatingService;
+
     /**
      * 新增志愿者任务
      */
@@ -41,5 +45,14 @@ public class VolunteerUserController {
     public Result<List<VolunteerMatchResp>> createVolunteerTask(@RequestBody VolunteerMatchReqDTO requestParam) {
 
         return Results.success(volunteerUserService.matchVolunteer(requestParam));
+    }
+
+    /**
+     * 志愿者评分
+     */
+    @PostMapping("/api/volunteer/volunteerRating")
+    public Result<Void> createVolunteerTask(@RequestBody VolunteerRatingReqDTO requestParam) {
+        volunteerRatingService.volunteerRating(requestParam);
+        return Results.success();
     }
 }

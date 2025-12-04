@@ -14,8 +14,8 @@ public interface VolunteerRatingService extends IService<VolunteerRatingDO> {
 
     /**
      * 志愿者评分
-     * @param volunteerRatingReqDTO
+     * @param requestParam 志愿者的评分和id
      */
-    void volunteerRating(VolunteerRatingReqDTO volunteerRatingReqDTO);
+    void volunteerRating(VolunteerRatingReqDTO requestParam);
 
 }

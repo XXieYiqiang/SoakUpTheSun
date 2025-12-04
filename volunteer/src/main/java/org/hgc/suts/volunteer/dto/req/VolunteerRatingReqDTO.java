@@ -8,7 +8,7 @@ public class VolunteerRatingReqDTO {
     /**
      * 志愿者id
      */
-    private Long userId;
+    private Long volunteerId;
 
     /**
      * 附加分(0无 1有)

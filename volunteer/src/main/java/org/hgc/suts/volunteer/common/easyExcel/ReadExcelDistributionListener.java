@@ -70,6 +70,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
     // 批量新增用户
     private void batchSaveVolunteer() {
         try {
+            // todo 可以把这些志愿者假如布隆过滤器中，后续的一些校验可以先通过布隆过滤器过滤
             volunteerUserMapper.insert(volunteerUserDOList,volunteerUserDOList.size());
             // 未捕获到异常,把列表推送到es新增user的消息队列中
             if (!volunteerUserDOList.isEmpty()) {
@@ -94,6 +95,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                 volunteerUserDOList.forEach(each -> {
                     try {
                         volunteerUserMapper.insert(each);
+                        // todo 可以把这些志愿者假如布隆过滤器中，后续的一些校验可以先通过布隆过滤器过滤
                     } catch (Exception ex2) {
                         // 添加到 t_volunteer_task_fail 并标记错误原因，方便后续查看未成功发送的原因和记录
                         Map<Object, Object> objectMap = MapUtil.builder()
