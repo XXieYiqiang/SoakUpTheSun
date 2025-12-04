@@ -23,7 +23,7 @@ public class VolunteerUserController {
     private final VolunteerUserService volunteerUserService;
 
     /**
-     * 新增志愿者任务
+     * 匹配志愿者
      */
     @PostMapping("/api/volunteer/matchVolunteer")
     public Result<List<VolunteerMatchResp>> createVolunteerTask(@RequestBody VolunteerMatchReq requestParam) {

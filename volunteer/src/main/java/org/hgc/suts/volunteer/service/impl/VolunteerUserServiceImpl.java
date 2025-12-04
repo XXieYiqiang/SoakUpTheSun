@@ -1,6 +1,7 @@
 package org.hgc.suts.volunteer.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.io.resource.ResourceUtil;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Script;
 import co.elastic.clients.elasticsearch._types.query_dsl.FunctionBoostMode;
@@ -22,10 +23,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
 * @author 谢毅强
@@ -39,13 +38,17 @@ public class VolunteerUserServiceImpl extends ServiceImpl<VolunteerUserMapper, V
 
     private final ElasticsearchClient elasticsearchClient;
     private static final String ES_INDEX_NAME = "volunteer_index";
+    // 查询脚本
+    private static final String MATCH_SCRIPT = ResourceUtil.readUtf8Str("scripts/volunteer_match.painless");
+
+
 
     @Override
     public List<VolunteerMatchResp> matchVolunteer(VolunteerMatchReq requestParam) {
 
         // 1. 当前用户的数据参数
         // 计算当前用户的年龄
-        int userAge = Period.between(Objects.requireNonNull(UserContext.getBirthday()).toLocalDate(), LocalDate.ofEpochDay(LocalDate.now().getYear())).getYears();
+        int userAge = Period.between(Objects.requireNonNull(UserContext.getBirthday()).toLocalDate(), LocalDate.now()).getYears();
 
         // 解析当前用户的经纬度 (假设 location 格式为 "lon,lat")
         String[] locationParts = Objects.requireNonNull(UserContext.getLocation()).split(",");
@@ -57,7 +60,7 @@ public class VolunteerUserServiceImpl extends ServiceImpl<VolunteerUserMapper, V
         
         params.put("sexWeight", JsonData.of(Math.abs(requestParam.getSexWeight()))); // 性别权重
         params.put("ageWeight", JsonData.of(Math.abs(requestParam.getAgeWeight()))); // 年龄权重
-        params.put("locationWeight", JsonData.of(Math.abs(requestParam.getLocationWeight()))); // 距离权重
+        params.put("locationWeight", JsonData.of(Math.abs(requestParam.getLocationWeight())*0.00001)); // 距离权重
 
         params.put("userSex", JsonData.of(UserContext.getUserSex()));
         params.put("userAge", JsonData.of(userAge));
@@ -67,38 +70,11 @@ public class VolunteerUserServiceImpl extends ServiceImpl<VolunteerUserMapper, V
         // 今年是几年
         params.put("currentYear", JsonData.of(LocalDate.now().getYear()));
 
-        // 3. 定义 评分 脚本
-        String scriptSource =
-                        "double sexWeight = params.sexWeight; " +
-                        "double ageWeight = params.ageWeight; " +
-                        "double locationWeight = params.locationWeight; " +
-
-                        // 计算性别差异 (0或1)
-                        "double sexVal = doc['sex'].size() > 0 ? doc['sex'].value : 0; " +
-                        "double sexDiff = Math.pow(params.userSex - sexVal, 2); " +
-
-                        // 计算年龄差异
-                        "int docYear = doc['birthday'].size() > 0 ? doc['birthday'].value.year : params.currentYear; " +
-                        "int docAge = params.currentYear - docYear; " +
-                        "double ageDiff = Math.pow(params.userAge - docAge, 2); " +
-
-                        // 计算距离差异 (米)
-                        "double locDiff = 0.0; " +
-                        "if (doc['location'].size() > 0) { " +
-                        "   locDiff = doc['location'].arcDistance(params.userLat, params.userLon); " +
-                        "} " +
-
-                        // f(x)
-                        "double fx = sexWeight * sexDiff + ageWeight * ageDiff + locationWeight * locDiff; " +
-                        "double K_SCALE = 0.005; " +
-
-                        "return Math.exp(-K_SCALE * fx);";
-        // 4. 构建查询
         try {
 
             Script rankingScript = new Script.Builder()
                     .inline(in -> in
-                            .source(scriptSource)
+                            .source(MATCH_SCRIPT)
                             .params(params)
                     )
                     .build();
@@ -110,68 +86,66 @@ public class VolunteerUserServiceImpl extends ServiceImpl<VolunteerUserMapper, V
             Query activeDataQuery = new Query.Builder()
                     .bool(b -> b
                             // 条件1：未删除
-                            .must(m -> m
-                                    .term(t -> t
-                                            .field("delFlag")
-                                            .value(0)
-                                    )
-                            )
-//                            // 条件2：startTime <= nowTime
-//                            .must(m -> m
-//                                    .range(r -> r
-//                                            .field("startTime")
-//                                            .lte(JsonData.of(nowTime))
-//                                    )
-//                            )
-//                            // 条件3：endTime >= nowTime
-//                            .must(m -> m
-//                                    .range(r -> r
-//                                            .field("endTime")
-//                                            .gte(JsonData.of(nowTime))
-//                                    )
-//                            )
+                            .must(m -> m.term(t -> t.field("delFlag").value(0)))
+                            // 条件2：startTime <= nowTime
+                            .must(m -> m.range(r -> r.field("startTime").lte(JsonData.of(nowTime))))
+                            // 条件3：endTime >= nowTime
+                            .must(m -> m.range(r -> r.field("endTime").gte(JsonData.of(nowTime))))
+                            // 条件4:增加地理位置过滤器,减少运行脚本的数量
+                            .filter(f -> f.geoDistance(g -> g.field("location").distance("1000km")
+                                            .location(l -> l.latlon(ll -> ll
+                                                            .lat(userLat)
+                                                            .lon(userLon)))))
                     )
                     .build();
 
-            // 执行查询
+            // 3. 执行查询 (只获取 ID)
             SearchResponse<VolunteerUserDO> response = elasticsearchClient.search(s -> s
                             .index(ES_INDEX_NAME)
-                            .size(10) // 取前10
+                            .size(50)
+                            // 不查 _source 详情
+                            .source(src -> src.fetch(false))
                             .query(q -> q
                                     .functionScore(fs -> fs
-                                            // 根据过滤器查询
                                             .query(activeDataQuery)
-
-                                            // 根据
-                                            .functions(f -> f
-                                                    .scriptScore(ss -> ss.script(rankingScript))
-                                            )
-
-                                            // 使用脚本计算出的分数直接替换原有分数(不被es内部评分影响)
+                                            .functions(f -> f.scriptScore(ss -> ss.script(rankingScript)))
                                             .boostMode(FunctionBoostMode.Replace)
                                     )
                             ),
                     VolunteerUserDO.class
             );
-            // 5. 提取结果
-            return response.hits().hits().stream()
-                    .map(hit -> {
-                        VolunteerUserDO userDO = hit.source();
-                        if (userDO == null) {
-                            return null;
-                        }
+            // 如果 ES 没结果，直接返回空
+            if (response.hits().hits().isEmpty()) {
+                return new ArrayList<>();
+            }
 
-                        // 转换结果
+            // 4. 提取 ID 和 匹配度分数
+            List<Long> idList = new ArrayList<>();
+            Map<Long, Double> scoreMap = new HashMap<>(); // 用于暂存 ID -> 匹配度
+
+            response.hits().hits().forEach(hit -> {
+                Long id = Long.parseLong(hit.id());
+                idList.add(id);
+                scoreMap.put(id, hit.score()); // 保存 ES 算出来的匹配度
+            });
+
+            // 5. MySQL 回表查询 获取最新消息
+            List<VolunteerUserDO> dbUserList = this.listByIds(idList);
+
+            // 6. 数据组装与重排序
+            return dbUserList.stream()
+                    .map(userDO -> {
                         VolunteerMatchResp resp = BeanUtil.toBean(userDO, VolunteerMatchResp.class);
-                        // 记录每个人的偏差值
-                        if (hit.score() != null) {
-                            resp.setMatchDegree(hit.score());
+                        // 从 Map 中把 ES 的匹配度填回去
+                        Double score = scoreMap.get(userDO.getId());
+                        if (score != null) {
+                            resp.setMatchDegree(score);
                         }
                         return resp;
                     })
-                    // 过滤空值
-                    .filter(Objects::nonNull)
-                    .toList();
+                    // 因为 MySQL listByIds 返回的顺序可能和 idList 不一致，必须重新按分数降序排
+                    .sorted(Comparator.comparing(VolunteerMatchResp::getMatchDegree).reversed())
+                    .collect(Collectors.toList());
 
         } catch (Exception e) {
             log.error("Elasticsearch 查询失败", e);
