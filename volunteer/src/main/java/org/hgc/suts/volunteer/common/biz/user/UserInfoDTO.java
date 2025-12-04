@@ -20,7 +20,7 @@ public class UserInfoDTO {
     /**
      * id
      */
-    private Long userId;
+    private Long id;
 
 
     /**
