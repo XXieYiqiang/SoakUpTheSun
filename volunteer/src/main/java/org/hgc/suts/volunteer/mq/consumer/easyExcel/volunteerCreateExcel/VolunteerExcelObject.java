@@ -1,4 +1,4 @@
-package org.hgc.suts.volunteer.common.easyExcel;
+package org.hgc.suts.volunteer.mq.consumer.easyExcel.volunteerCreateExcel;
 
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.alibaba.excel.annotation.write.style.ColumnWidth;

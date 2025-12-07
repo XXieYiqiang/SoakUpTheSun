@@ -1,4 +1,4 @@
-package org.hgc.suts.volunteer.common.easyExcel;
+package org.hgc.suts.volunteer.mq.consumer.easyExcel.volunteerCreateExcel;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.map.MapUtil;
@@ -16,7 +16,6 @@ import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskFailMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
 import org.hgc.suts.volunteer.mq.event.VolunteerUserEsSyncEvent;
 import org.hgc.suts.volunteer.mq.producer.VolunteerUserEsSyncProducer;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.ArrayList;
