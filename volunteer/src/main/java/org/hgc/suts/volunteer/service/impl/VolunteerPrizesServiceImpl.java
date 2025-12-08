@@ -12,8 +12,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import net.sf.jsqlparser.expression.StringValue;
 import org.apache.ibatis.cursor.Cursor;
 import org.hgc.suts.volunteer.common.constant.DistributionRedisConstant;
+import org.hgc.suts.volunteer.common.constant.RedisCacheConstant;
+import org.hgc.suts.volunteer.common.enums.VolunteerPrizesSendTypeEnum;
 import org.hgc.suts.volunteer.common.exception.ClientException;
 import org.hgc.suts.volunteer.dao.entity.VolunteerPrizesDO;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
@@ -27,6 +30,7 @@ import org.hgc.suts.volunteer.dao.mapper.VolunteerPrizesMapper;
 import org.hgc.suts.volunteer.service.impl.easyExcel.VolunteerPrizes.CreateVolunteerPrizesExcelObject;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -52,6 +56,7 @@ public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMappe
     private final RedissonClient redissonClient;
     private final TransactionTemplate transactionTemplate;
     private final VolunteerPrizesSendProducer volunteerPrizesSendProducer;
+    private final StringRedisTemplate stringRedisTemplate;
     private final ExecutorService executorService = new ThreadPoolExecutor(
             // 核心线程
             Runtime.getRuntime().availableProcessors(),
@@ -63,6 +68,7 @@ public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMappe
             // 队列满了由主线程执行，防止报错丢失任务
             new ThreadPoolExecutor.CallerRunsPolicy()
     );
+
 
     // todo 创建奖品
     @Override
@@ -87,17 +93,17 @@ public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMappe
             // 1.获取奖品信息
             VolunteerPrizesDO volunteerPrizes = volunteerPrizesMapper.selectById(requestParam.getId());
 
-            if (volunteerPrizes == null || volunteerPrizes.getStatus() == 1 ||  volunteerPrizes.getStatus() == 2) {
+            if (volunteerPrizes == null || volunteerPrizes.getStatus() == VolunteerPrizesSendTypeEnum.IN_PROGRESS.getStatus() ||  volunteerPrizes.getStatus() == VolunteerPrizesSendTypeEnum.SUCCESS.getStatus()) {
                 throw new ClientException("奖品不存在 或 正在发放中/已结束");
             }
 
             // 修改奖品状态，防止重复消费
             LambdaUpdateWrapper<VolunteerPrizesDO> updateWrapper = Wrappers.lambdaUpdate(VolunteerPrizesDO.class)
                     .eq(VolunteerPrizesDO::getId, requestParam.getId())
-                    .eq(VolunteerPrizesDO::getStatus, 0)
+                    .eq(VolunteerPrizesDO::getStatus, VolunteerPrizesSendTypeEnum.PENDING.getStatus())
                     .eq(VolunteerPrizesDO::getDelFlag, 0)
                     // 修改为 发放中
-                    .set(VolunteerPrizesDO::getStatus, 1);
+                    .set(VolunteerPrizesDO::getStatus, VolunteerPrizesSendTypeEnum.IN_PROGRESS.getStatus());
             volunteerPrizesMapper.update(updateWrapper);
 
             // 2. 计算截断分数线 (Score)
@@ -203,13 +209,16 @@ public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMappe
             // 标记为完成态
             LambdaUpdateWrapper<VolunteerPrizesDO> updateWrapper = Wrappers.lambdaUpdate(VolunteerPrizesDO.class)
                     .eq(VolunteerPrizesDO::getId, prizeId)
-                    .eq(VolunteerPrizesDO::getStatus, 1)
+                    .eq(VolunteerPrizesDO::getStatus, VolunteerPrizesSendTypeEnum.IN_PROGRESS.getStatus())
                     // 修改为完成态
-                    .set(VolunteerPrizesDO::getStatus, 2);
+                    .set(VolunteerPrizesDO::getStatus, VolunteerPrizesSendTypeEnum.SUCCESS.getStatus());
             volunteerPrizesMapper.update(updateWrapper);
             sendMqSafely(allUserIdsForMq, prizeId);
+            // 放入redis中，防止消息队列消费时一直通过查询数据库获取状态
+            stringRedisTemplate.opsForHash().put(RedisCacheConstant.VOLUNTEER_PRIZES_SEND_STATUS_KEY,String.valueOf(prizeId),String.valueOf(VolunteerPrizesSendTypeEnum.SUCCESS.getStatus()));
+            stringRedisTemplate.expire(RedisCacheConstant.VOLUNTEER_PRIZES_SEND_STATUS_KEY, 72L, TimeUnit.HOURS);
         } catch (Exception e) {
-            log.error("奖品分发任务彻底失败，回滚状态", e);
+            log.error("奖品分发任务失败，回滚状态", e);
             // 失败时删除临时文件
             if (tempFile.exists()) FileUtil.del(tempFile);
 
@@ -252,8 +261,8 @@ public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMappe
         LambdaUpdateWrapper<VolunteerPrizesDO> updateWrapper = Wrappers.lambdaUpdate(VolunteerPrizesDO.class)
                 .eq(VolunteerPrizesDO::getId, prizeId)
                 // 仅回滚“发放中”的任务
-                .eq(VolunteerPrizesDO::getStatus, 1)
-                .set(VolunteerPrizesDO::getStatus, 0);
+                .eq(VolunteerPrizesDO::getStatus, VolunteerPrizesSendTypeEnum.IN_PROGRESS.getStatus())
+                .set(VolunteerPrizesDO::getStatus, VolunteerPrizesSendTypeEnum.PENDING.getStatus());
         volunteerPrizesMapper.update(updateWrapper);
     }
 }

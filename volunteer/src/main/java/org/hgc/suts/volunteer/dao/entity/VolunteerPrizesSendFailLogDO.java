@@ -5,41 +5,36 @@ import com.baomidou.mybatisplus.annotation.*;
 import java.util.Date;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * 
- * @TableName volunteer_rating
+ * @TableName volunteer_prizes_send_fail_log
  */
-@TableName(value ="volunteer_rating")
+@TableName(value ="volunteer_prizes_send_fail_log")
 @Data
-public class VolunteerRatingDO {
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class VolunteerPrizesSendFailLogDO {
     /**
-     * id
+     * 主键ID
      */
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
-     * 用户id
+     * 奖品id
      */
-    private Long userId;
+    private Long prizesId;
 
     /**
-     * 志愿者id
+     * JSON字符串，存储失败原因、Excel行数等信息
      */
-    private Long volunteerId;
-
-    /**
-     * 附加分(0无 1有)
-     */
-    private Integer rating;
-
-    /**
-     * 是否已计算入总分 0-否 1-是
-     */
-    @TableField(fill = FieldFill.INSERT)
-    private Integer isCalculated;
+    private String jsonObject;
 
     /**
      * 创建时间

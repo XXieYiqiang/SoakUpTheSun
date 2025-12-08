@@ -120,7 +120,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                 if (!volunteerUserDOList.isEmpty()) {
                     VolunteerUserEsSyncEvent volunteerUserEsSyncEvent = VolunteerUserEsSyncEvent.builder()
                             .batchId(volunteerTaskDO.getId())
-                            // 【注意点】使用 new ArrayList() 传递副本，防止多线程问题或列表在发送前被清理
+                            // 使用 new ArrayList() 传递副本，防止多线程问题或列表在发送前被清理
                             .userList(new ArrayList<>(volunteerUserDOList))
                             .build();
 

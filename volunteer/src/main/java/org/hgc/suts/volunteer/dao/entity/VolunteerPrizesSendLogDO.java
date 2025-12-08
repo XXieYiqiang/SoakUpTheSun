@@ -9,21 +9,16 @@ import lombok.Data;
 
 /**
  * 
- * @TableName volunteer_rating
+ * @TableName volunteer_prizes_send_log
  */
-@TableName(value ="volunteer_rating")
+@TableName(value ="volunteer_prizes_send_log")
 @Data
-public class VolunteerRatingDO {
+public class VolunteerPrizesSendLogDO {
     /**
-     * id
+     * 主键ID
      */
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
-
-    /**
-     * 用户id
-     */
-    private Long userId;
 
     /**
      * 志愿者id
@@ -31,15 +26,14 @@ public class VolunteerRatingDO {
     private Long volunteerId;
 
     /**
-     * 附加分(0无 1有)
+     * 奖品id
      */
-    private Integer rating;
+    private Long prizesId;
 
     /**
-     * 是否已计算入总分 0-否 1-是
+     * 奖品领取码
      */
-    @TableField(fill = FieldFill.INSERT)
-    private Integer isCalculated;
+    private String cdk;
 
     /**
      * 创建时间

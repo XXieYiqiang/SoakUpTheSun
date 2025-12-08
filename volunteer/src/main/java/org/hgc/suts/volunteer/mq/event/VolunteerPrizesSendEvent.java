@@ -10,7 +10,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * 用于批量新增入MYSQL时，同步新增入es
+ * 用于把发放奖品记录保存到数据库中
  */
 @Data
 @Builder

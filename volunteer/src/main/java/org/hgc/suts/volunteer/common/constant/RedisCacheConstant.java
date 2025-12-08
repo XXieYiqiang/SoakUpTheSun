@@ -19,6 +19,20 @@ public class RedisCacheConstant {
     /**
      * 志愿者新增任务时兜底机制的延迟队列key
      */
-    public static final String TASK_SEND_GUARANTEE_QUEUE = "Volunteer_TASK_SEND_NUM_DELAY_QUEUE";
+    public static final String TASK_SEND_GUARANTEE_QUEUE = "suts:Volunteer_TASK_SEND_NUM_DELAY_QUEUE";
 
+    /**
+     * 发放奖品给志愿者领取
+     */
+    public static final String VOLUNTEER_PRIZES_SEND_KEY = "suts:volunteer:prizes:send:%s";
+
+    /**
+     * 发放奖品信息状态
+     */
+    public static final String VOLUNTEER_PRIZES_SEND_STATUS_KEY = "suts:volunteer:prizes:status";
+
+    /**
+     * 发放奖品信息状态锁
+     */
+    public static final String VOLUNTEER_PRIZES_SEND_STATUS_LOCK_KEY = "suts:volunteer:prizes:status";
 }
