@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
-import org.hgc.suts.volunteer.common.easyExcel.ReadExcelDistributionListener;
-import org.hgc.suts.volunteer.common.easyExcel.VolunteerExcelObject;
+import org.hgc.suts.volunteer.mq.consumer.easyExcel.volunteerCreateExcel.ReadExcelDistributionListener;
+import org.hgc.suts.volunteer.mq.consumer.easyExcel.volunteerCreateExcel.VolunteerExcelObject;
 import org.hgc.suts.volunteer.common.enums.VolunteerTaskStatusEnum;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskFailMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskMapper;
@@ -16,7 +16,6 @@ import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
 import org.hgc.suts.volunteer.mq.base.MessageWrapper;
 import org.hgc.suts.volunteer.mq.event.VolunteerTaskExecuteEvent;
 import org.hgc.suts.volunteer.mq.producer.VolunteerUserEsSyncProducer;
-import org.hgc.suts.volunteer.service.VolunteerUserService;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 

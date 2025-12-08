@@ -5,8 +5,10 @@ import org.hgc.suts.volunteer.common.result.Result;
 import org.hgc.suts.volunteer.common.web.Results;
 import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReqDTO;
 import org.hgc.suts.volunteer.dto.req.VolunteerMatchReqDTO;
+import org.hgc.suts.volunteer.dto.req.VolunteerPrizeDistributionReqDTO;
 import org.hgc.suts.volunteer.dto.req.VolunteerRatingReqDTO;
 import org.hgc.suts.volunteer.dto.resp.VolunteerMatchResp;
+import org.hgc.suts.volunteer.service.VolunteerPrizesService;
 import org.hgc.suts.volunteer.service.VolunteerRatingService;
 import org.hgc.suts.volunteer.service.VolunteerTaskService;
 import org.hgc.suts.volunteer.service.VolunteerUserService;
@@ -28,6 +30,8 @@ public class VolunteerUserController {
     private final VolunteerTaskService volunteerTaskService;
 
     private final VolunteerRatingService volunteerRatingService;
+
+    private final VolunteerPrizesService volunteerPrizesService;
 
     /**
      * 新增志愿者任务
@@ -55,4 +59,14 @@ public class VolunteerUserController {
         volunteerRatingService.volunteerRating(requestParam);
         return Results.success();
     }
+
+    /**
+     * 志愿者奖品分发
+     */
+    @PostMapping("/api/volunteer/volunteerPrizesSend")
+    public Result<Void> volunteerPrizesSend(@RequestBody VolunteerPrizeDistributionReqDTO requestParam) {
+        volunteerPrizesService.volunteerPrizeDistribution(requestParam);
+        return Results.success();
+    }
+
 }
