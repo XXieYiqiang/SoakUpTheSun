@@ -14,7 +14,7 @@ import org.hgc.suts.volunteer.common.biz.user.UserContext;
 import org.hgc.suts.volunteer.common.exception.ClientException;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
 import org.hgc.suts.volunteer.dto.req.VolunteerMatchReqDTO;
-import org.hgc.suts.volunteer.dto.resp.VolunteerMatchResp;
+import org.hgc.suts.volunteer.dto.resp.VolunteerMatchRespDTO;
 import org.hgc.suts.volunteer.service.VolunteerUserService;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
 import org.springframework.stereotype.Service;
@@ -44,7 +44,7 @@ public class VolunteerUserServiceImpl extends ServiceImpl<VolunteerUserMapper, V
 
 
     @Override
-    public List<VolunteerMatchResp> matchVolunteer(VolunteerMatchReqDTO requestParam) {
+    public List<VolunteerMatchRespDTO> matchVolunteer(VolunteerMatchReqDTO requestParam) {
 
         // 1. 当前用户的数据参数
         // 计算当前用户的年龄
@@ -135,7 +135,7 @@ public class VolunteerUserServiceImpl extends ServiceImpl<VolunteerUserMapper, V
             // 6. 数据组装与重排序
             return dbUserList.stream()
                     .map(userDO -> {
-                        VolunteerMatchResp resp = BeanUtil.toBean(userDO, VolunteerMatchResp.class);
+                        VolunteerMatchRespDTO resp = BeanUtil.toBean(userDO, VolunteerMatchRespDTO.class);
                         // 从 Map 中把 ES 的匹配度填回去
                         Double score = scoreMap.get(userDO.getId());
                         if (score != null) {
@@ -144,7 +144,7 @@ public class VolunteerUserServiceImpl extends ServiceImpl<VolunteerUserMapper, V
                         return resp;
                     })
                     // 因为 MySQL listByIds 返回的顺序可能和 idList 不一致，必须重新按分数降序排
-                    .sorted(Comparator.comparing(VolunteerMatchResp::getMatchDegree).reversed())
+                    .sorted(Comparator.comparing(VolunteerMatchRespDTO::getMatchDegree).reversed())
                     .collect(Collectors.toList());
 
         } catch (Exception e) {

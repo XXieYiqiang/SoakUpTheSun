@@ -1,7 +1,9 @@
 package org.hgc.suts.volunteer.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.map.MapUtil;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.write.metadata.WriteSheet;
@@ -12,7 +14,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import net.sf.jsqlparser.expression.StringValue;
 import org.apache.ibatis.cursor.Cursor;
 import org.hgc.suts.volunteer.common.constant.DistributionRedisConstant;
 import org.hgc.suts.volunteer.common.constant.RedisCacheConstant;
@@ -22,23 +23,26 @@ import org.hgc.suts.volunteer.dao.entity.VolunteerPrizesDO;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
 import org.hgc.suts.volunteer.dto.req.VolunteerPrizeDistributionReqDTO;
+import org.hgc.suts.volunteer.dto.resp.VolunteerPrizesRespDTO;
 import org.hgc.suts.volunteer.mq.event.VolunteerPrizesSendEvent;
 import org.hgc.suts.volunteer.mq.producer.VolunteerPrizesSendProducer;
-import org.hgc.suts.volunteer.mq.producer.VolunteerTaskActualExecuteProducer;
 import org.hgc.suts.volunteer.service.VolunteerPrizesService;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerPrizesMapper;
 import org.hgc.suts.volunteer.service.impl.easyExcel.VolunteerPrizes.CreateVolunteerPrizesExcelObject;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 /**
 * @author 谢毅强
@@ -50,7 +54,7 @@ import java.util.concurrent.*;
 @Slf4j
 public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMapper, VolunteerPrizesDO> implements VolunteerPrizesService{
 
-
+    private final DefaultRedisScript<Long> savePrizesCacheScript;
     private final VolunteerPrizesMapper volunteerPrizesMapper;
     private final VolunteerUserMapper volunteerUserMapper;
     private final RedissonClient redissonClient;
@@ -76,6 +80,75 @@ public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMappe
         //todo 放入布隆过滤器中
     }
 
+    @SneakyThrows
+    @Override
+    public VolunteerPrizesRespDTO findVolunteerPrizes(Long prizesId) {
+        String prizesKey = String.format(RedisCacheConstant.VOLUNTEER_PRIZES_KEY, prizesId);
+        Map<Object, Object> prizesCacheMap = stringRedisTemplate.opsForHash().entries(prizesKey);
+
+        // 1. 缓存命中直接返回
+        if (MapUtil.isNotEmpty(prizesCacheMap)) {
+            return BeanUtil.mapToBean(prizesCacheMap, VolunteerPrizesRespDTO.class, false, CopyOptions.create());
+        }
+
+        // 2. 缓存为空，获取锁
+        RLock lock = redissonClient.getLock(RedisCacheConstant.VOLUNTEER_PRIZES_LOCK_KEY + prizesId);
+
+        if (lock.tryLock(1, TimeUnit.SECONDS)) {
+            try {
+                // 3. 再查缓存，看看前面有没有线程把它放进缓存里面了
+                prizesCacheMap = stringRedisTemplate.opsForHash().entries(prizesKey);
+                if (MapUtil.isNotEmpty(prizesCacheMap)) {
+                    return BeanUtil.mapToBean(prizesCacheMap, VolunteerPrizesRespDTO.class, false, CopyOptions.create());
+                }
+
+                // 4. 查询数据库
+                VolunteerPrizesDO prizesDO = volunteerPrizesMapper.selectById(prizesId);
+                if (prizesDO == null) {
+                    // 说明prizesId错误，或者奖品已经被删除
+                    throw new ClientException("该奖品不存在");
+                }
+
+                // 5. 准备写入 Redis
+                VolunteerPrizesRespDTO actualRespDTO = BeanUtil.toBean(prizesDO, VolunteerPrizesRespDTO.class);
+                Map<String, Object> cacheTargetMap = BeanUtil.beanToMap(actualRespDTO, false, true);
+
+                Map<String, String> actualCacheTargetMap = cacheTargetMap.entrySet().stream()
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey,
+                                entry -> entry.getValue() != null ? entry.getValue().toString() : ""
+                        ));
+
+                List<String> keys = Collections.singletonList(prizesKey);
+                List<String> args = new ArrayList<>(actualCacheTargetMap.size() * 2 + 1);
+                actualCacheTargetMap.forEach((key, value) -> {
+                    args.add(key);
+                    args.add(value);
+                });
+
+                // 防止数据库因为某种原因导致过期时间为空，给一个默认值
+                long expireTime = (prizesDO.getValidEndTime() != null)
+                        ? prizesDO.getValidEndTime().getTime() / 1000
+                        : System.currentTimeMillis() / 1000 + 86400;
+
+                args.add(String.valueOf(expireTime));
+
+                stringRedisTemplate.execute(
+                        savePrizesCacheScript,
+                        keys,
+                        args.toArray()
+                );
+
+                // 返回prizes的信息
+                return actualRespDTO;
+
+            } finally {
+                lock.unlock();
+            }
+        } else {
+            throw new RuntimeException("当前请求繁忙，请重试");
+        }
+    }
     @SneakyThrows
     @Override
     public void volunteerPrizeDistribution(VolunteerPrizeDistributionReqDTO requestParam) {

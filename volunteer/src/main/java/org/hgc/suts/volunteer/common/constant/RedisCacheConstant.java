@@ -22,6 +22,20 @@ public class RedisCacheConstant {
     public static final String TASK_SEND_GUARANTEE_QUEUE = "suts:Volunteer_TASK_SEND_NUM_DELAY_QUEUE";
 
     /**
+     * 奖品信息key
+     */
+    public static final String VOLUNTEER_PRIZES_KEY = "suts:volunteer:prizes:%s";
+
+    /**
+     * 奖品信息key
+     */
+    public static final String VOLUNTEER_PRIZES_VOLUNTEER_GRAB_KEY = "suts:volunteer:prizes:%s";
+
+    /**
+     * 奖品信息获取lock
+     */
+    public static final String VOLUNTEER_PRIZES_LOCK_KEY = "suts:volunteer:prizes:lock:%s";
+    /**
      * 发放奖品给志愿者领取
      */
     public static final String VOLUNTEER_PRIZES_SEND_KEY = "suts:volunteer:prizes:send:%s";
@@ -35,4 +49,11 @@ public class RedisCacheConstant {
      * 发放奖品信息状态锁
      */
     public static final String VOLUNTEER_PRIZES_SEND_STATUS_LOCK_KEY = "suts:volunteer:prizes:status";
+
+    /**
+     * 用户已领取奖品 Key
+     */
+    public static final String VOLUNTEER_PRIZES_LIST = "suts:volunteer-prizes-list:%s";
+
+
 }

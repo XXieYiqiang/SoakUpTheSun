@@ -5,15 +5,21 @@ import com.baomidou.mybatisplus.annotation.*;
 import java.util.Date;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
- * 志愿者奖品表
- * @TableName volunteer_prizes
+ * 
+ * @TableName volunteer_prizes_grab
  */
-@TableName(value ="volunteer_prizes")
+@TableName(value ="volunteer_prizes_grab")
 @Data
-public class VolunteerPrizesDO {
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class VolunteerPrizesGrabDO {
     /**
      * 主键ID
      */
@@ -21,34 +27,29 @@ public class VolunteerPrizesDO {
     private Long id;
 
     /**
-     * 奖品名称
+     * 志愿者id
      */
-    private String name;
+    private Long volunteerId;
 
     /**
-     * 有效期开始时间
+     * 奖品id
      */
-    private Date validStartTime;
+    private Long prizesId;
 
     /**
-     * 有效期结束时间
+     * 奖品领取码
+     */
+    private String cdk;
+
+    /**
+     * 领取次数
+     */
+    private Integer receiveCount;
+
+    /**
+     * 有效期截至时间
      */
     private Date validEndTime;
-
-    /**
-     * 库存
-     */
-    private Integer stock;
-
-    /**
-     * 状态 0：未发放 1:执行中  2：已结束
-     */
-    private Integer status;
-
-    /**
-     * 比例，前？%
-     */
-    private Integer proportion;
 
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

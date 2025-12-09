@@ -21,4 +21,12 @@
         id,name,valid_start_time,valid_end_time,stock,status,proportion,
         create_time,update_time,del_flag
     </sql>
+
+    <update id="decrementPrizesStock">
+        UPDATE volunteer_prizes
+        SET stock = stock - #{decrementStock}
+        WHERE id = #{prizesId}
+          AND stock >= #{decrementStock}
+    </update>
+
 </mapper>

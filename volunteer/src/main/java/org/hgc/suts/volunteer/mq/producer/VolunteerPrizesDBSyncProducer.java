@@ -6,8 +6,7 @@ import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.hgc.suts.volunteer.mq.base.BaseSendExtendDTO;
 import org.hgc.suts.volunteer.mq.base.MessageWrapper;
-import org.hgc.suts.volunteer.mq.event.VolunteerTaskExecuteEvent;
-import org.hgc.suts.volunteer.mq.event.VolunteerUserEsSyncEvent; // 导入 ES 同步事件
+import org.hgc.suts.volunteer.mq.event.VolunteerPrizesGrabDBSyncEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.messaging.Message;
@@ -22,28 +21,28 @@ import java.util.UUID;
  */
 @Slf4j
 @Component
-public class VolunteerUserEsSyncProducer extends AbstractCommonSendProduceTemplate<VolunteerUserEsSyncEvent> {
+public class VolunteerPrizesDBSyncProducer extends AbstractCommonSendProduceTemplate<VolunteerPrizesGrabDBSyncEvent> {
 
     private final ConfigurableEnvironment environment;
 
-    public VolunteerUserEsSyncProducer(@Autowired RocketMQTemplate rocketMQTemplate, @Autowired ConfigurableEnvironment environment) {
+    public VolunteerPrizesDBSyncProducer(@Autowired RocketMQTemplate rocketMQTemplate, @Autowired ConfigurableEnvironment environment) {
         super(rocketMQTemplate);
         this.environment = environment;
     }
 
     @Override
-    protected BaseSendExtendDTO buildBaseSendExtendParam(VolunteerUserEsSyncEvent messageSendEvent) {
+    protected BaseSendExtendDTO buildBaseSendExtendParam(VolunteerPrizesGrabDBSyncEvent messageSendEvent) {
         
         return BaseSendExtendDTO.builder()
-                .eventName("志愿者用户ES同步执行")
-                .keys(String.valueOf(messageSendEvent.getBatchId()))
-                .topic(environment.resolvePlaceholders("volunteerTask_excel_es_topic"))
+                .eventName("志愿者秒杀奖品同步数据库执行")
+                .keys(UUID.randomUUID().toString())
+                .topic(environment.resolvePlaceholders("volunteerPrizes_grab_DBSync_topic"))
                 .sentTimeout(3000L)
                 .build();
     }
 
     @Override
-    protected Message<?> buildMessage(VolunteerUserEsSyncEvent messageSendEvent, BaseSendExtendDTO requestParam) {
+    protected Message<?> buildMessage(VolunteerPrizesGrabDBSyncEvent messageSendEvent, BaseSendExtendDTO requestParam) {
         // 使用请求参数中的 Keys，如果为空则生成 UUID
         String keys = StrUtil.isEmpty(requestParam.getKeys()) ? UUID.randomUUID().toString() : requestParam.getKeys();
         
