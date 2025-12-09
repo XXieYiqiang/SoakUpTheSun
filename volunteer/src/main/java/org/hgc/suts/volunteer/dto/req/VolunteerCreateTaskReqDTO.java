@@ -1,7 +1,6 @@
 package org.hgc.suts.volunteer.dto.req;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.Date;
@@ -10,7 +9,7 @@ import java.util.Date;
  * 添加志愿者请求实体
  */
 @Data
-public class VolunteerCreateTaskReq {
+public class VolunteerCreateTaskReqDTO {
 
     /**
      * 任务名称

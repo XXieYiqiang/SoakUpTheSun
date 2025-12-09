@@ -38,7 +38,7 @@ public class VolunteerUserEsSyncProducer extends AbstractCommonSendProduceTempla
                 .eventName("志愿者用户ES同步执行")
                 .keys(String.valueOf(messageSendEvent.getBatchId()))
                 .topic(environment.resolvePlaceholders("volunteerTask_excel_es_topic"))
-                .sentTimeout(3000L) // 适当延长发送超时时间
+                .sentTimeout(3000L)
                 .build();
     }
 
@@ -50,8 +50,8 @@ public class VolunteerUserEsSyncProducer extends AbstractCommonSendProduceTempla
         // 封装消息负载和设置消息头
         return MessageBuilder
                 .withPayload(new MessageWrapper(keys, messageSendEvent))
-                .setHeader(MessageConst.PROPERTY_KEYS, keys) // 设置 RocketMQ 的业务键
-                .setHeader(MessageConst.PROPERTY_TAGS, requestParam.getTag()) // 设置 Tag
+                .setHeader(MessageConst.PROPERTY_KEYS, keys)
+                .setHeader(MessageConst.PROPERTY_TAGS, requestParam.getTag())
                 .build();
     }
 

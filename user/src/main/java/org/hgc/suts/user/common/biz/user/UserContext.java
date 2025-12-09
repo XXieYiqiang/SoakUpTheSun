@@ -29,7 +29,7 @@ public class UserContext {
      */
     public static Long getUserId() {
         UserInfoDTO user = USER_HOLDER.get();
-        return user != null ? user.getUserId() : null;
+        return user != null ? user.getId() : null;
     }
 
     /**

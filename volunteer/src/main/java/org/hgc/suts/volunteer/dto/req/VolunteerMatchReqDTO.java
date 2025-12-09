@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class VolunteerMatchReq {
+public class VolunteerMatchReqDTO {
     /**
      * 性别权重
      */

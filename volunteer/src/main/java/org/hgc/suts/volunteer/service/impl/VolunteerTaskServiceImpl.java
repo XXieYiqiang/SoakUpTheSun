@@ -11,7 +11,7 @@ import org.hgc.suts.volunteer.common.enums.VolunteerTaskSendTypeEnum;
 import org.hgc.suts.volunteer.common.enums.VolunteerTaskStatusEnum;
 import org.hgc.suts.volunteer.common.exception.ClientException;
 import org.hgc.suts.volunteer.dao.entity.VolunteerTaskDO;
-import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReq;
+import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReqDTO;
 import org.hgc.suts.volunteer.mq.event.VolunteerTaskExecuteEvent;
 import org.hgc.suts.volunteer.mq.producer.VolunteerTaskActualExecuteProducer;
 import org.hgc.suts.volunteer.service.VolunteerTaskService;
@@ -55,7 +55,7 @@ public class VolunteerTaskServiceImpl extends ServiceImpl<VolunteerTaskMapper, V
 
 
     @Override
-    public void createVolunteerTask(VolunteerCreateTaskReq requestParam) {
+    public void createVolunteerTask(VolunteerCreateTaskReqDTO requestParam) {
         if (requestParam.getFileAddress() == null) {
             throw new ClientException("Excel文件不能为空");
         }

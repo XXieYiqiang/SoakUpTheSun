@@ -11,4 +11,8 @@ public final class DistributionRedisConstant {
     public static final String VOLUNTEER_TASK_EXECUTE_PROGRESS_KEY = "suts:template-task-execute-progress:%s";
 
 
+    /**
+     * 防止重复发送奖品 Key
+     */
+    public static final String VOLUNTEER_PRIZES_DISTRIBUTION_KEY = "suts:volunteer-prizes-distribution:%s";
 }

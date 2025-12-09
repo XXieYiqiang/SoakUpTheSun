@@ -1,4 +1,4 @@
-package org.hgc.suts.volunteer.common.easyExcel;
+package org.hgc.suts.volunteer.mq.consumer.easyExcel.volunteerCreateExcel;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.map.MapUtil;
@@ -16,7 +16,6 @@ import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskFailMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
 import org.hgc.suts.volunteer.mq.event.VolunteerUserEsSyncEvent;
 import org.hgc.suts.volunteer.mq.producer.VolunteerUserEsSyncProducer;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.ArrayList;
@@ -70,6 +69,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
     // 批量新增用户
     private void batchSaveVolunteer() {
         try {
+            // todo 可以把这些志愿者假如布隆过滤器中，后续的一些校验可以先通过布隆过滤器过滤
             volunteerUserMapper.insert(volunteerUserDOList,volunteerUserDOList.size());
             // 未捕获到异常,把列表推送到es新增user的消息队列中
             if (!volunteerUserDOList.isEmpty()) {
@@ -94,6 +94,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                 volunteerUserDOList.forEach(each -> {
                     try {
                         volunteerUserMapper.insert(each);
+                        // todo 可以把这些志愿者假如布隆过滤器中，后续的一些校验可以先通过布隆过滤器过滤
                     } catch (Exception ex2) {
                         // 添加到 t_volunteer_task_fail 并标记错误原因，方便后续查看未成功发送的原因和记录
                         Map<Object, Object> objectMap = MapUtil.builder()
@@ -119,7 +120,7 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
                 if (!volunteerUserDOList.isEmpty()) {
                     VolunteerUserEsSyncEvent volunteerUserEsSyncEvent = VolunteerUserEsSyncEvent.builder()
                             .batchId(volunteerTaskDO.getId())
-                            // 【注意点】使用 new ArrayList() 传递副本，防止多线程问题或列表在发送前被清理
+                            // 使用 new ArrayList() 传递副本，防止多线程问题或列表在发送前被清理
                             .userList(new ArrayList<>(volunteerUserDOList))
                             .build();
 

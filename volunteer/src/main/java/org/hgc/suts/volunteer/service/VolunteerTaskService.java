@@ -3,7 +3,7 @@ package org.hgc.suts.volunteer.service;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.hgc.suts.volunteer.dao.entity.VolunteerTaskDO;
-import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReq;
+import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReqDTO;
 
 /**
 * @author 谢毅强
@@ -15,7 +15,7 @@ public interface VolunteerTaskService extends IService<VolunteerTaskDO> {
      * 创建志愿者
      * @param requestParam 请求创建任务参数
      */
-    void createVolunteerTask(VolunteerCreateTaskReq requestParam);
+    void createVolunteerTask(VolunteerCreateTaskReqDTO requestParam);
 
 
     /**
