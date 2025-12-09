@@ -14,16 +14,19 @@ import org.hgc.suts.volunteer.common.enums.VolunteerPrizesSendTypeEnum;
 import org.hgc.suts.volunteer.common.enums.VolunteerTaskStatusEnum;
 import org.hgc.suts.volunteer.dao.entity.*;
 import org.hgc.suts.volunteer.dao.mapper.*;
+import org.hgc.suts.volunteer.dto.resp.VolunteerPrizesRespDTO;
 import org.hgc.suts.volunteer.mq.base.MessageWrapper;
 import org.hgc.suts.volunteer.mq.event.VolunteerPrizesSendEvent;
+import org.hgc.suts.volunteer.service.VolunteerPrizesService;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -35,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class VolunteerPrizesSendConsumer implements RocketMQListener<MessageWrapper<VolunteerPrizesSendEvent>> {
 
-    private final VolunteerPrizesMapper volunteerPrizesMapper;
+    private final VolunteerPrizesService volunteerPrizesService;
     private final StringRedisTemplate stringRedisTemplate;
     private final VolunteerPrizesSendLogMapper volunteerPrizesSendLogMapper;
     private final VolunteerPrizesSendFailLogMapper volunteerPrizesSendFailLogMapper;
@@ -65,7 +68,7 @@ public class VolunteerPrizesSendConsumer implements RocketMQListener<MessageWrap
         List<VolunteerPrizesSendLogDO> allVolunteerPrizesSendLogDOList=new ArrayList<>();
         List<VolunteerPrizesSendLogDO> VolunteerPrizesSendSuccessList = new ArrayList<>();
         // 存入redis的键
-        String VolunteerPrizesSendLogKey=String.format(RedisCacheConstant.VOLUNTEER_PRIZES_SEND_KEY, volunteerPrizesBatchId);;
+
         for (Long userId : userIdList) {
             VolunteerPrizesSendLogDO volunteerPrizesSendLogDO=new VolunteerPrizesSendLogDO();
             volunteerPrizesSendLogDO.setVolunteerId(userId);
@@ -106,18 +109,45 @@ public class VolunteerPrizesSendConsumer implements RocketMQListener<MessageWrap
 
 
         }
-        // 转换为 Map
-        Map<String, String> redisDataMap = MapUtil.newHashMap(VolunteerPrizesSendSuccessList.size());
-        VolunteerPrizesSendSuccessList.forEach(each -> {
-            redisDataMap.put(String.valueOf(each.getVolunteerId()), each.getCdk());
-        });
+        if (!VolunteerPrizesSendSuccessList.isEmpty()) {
 
-        if (!redisDataMap.isEmpty()) {
-            stringRedisTemplate.opsForHash().putAll(VolunteerPrizesSendLogKey, redisDataMap);
-            stringRedisTemplate.expire(VolunteerPrizesSendLogKey, 72L, TimeUnit.HOURS);
-            log.info("[消费者] 发放记录写入成功，数量：{}", VolunteerPrizesSendSuccessList.size());
+            // 1. 先查出奖品名称
+            VolunteerPrizesRespDTO prizeInfo = volunteerPrizesService.findVolunteerPrizes(volunteerPrizesBatchId);
+            String prizeName = (prizeInfo != null) ? prizeInfo.getName() : "未知奖品";
+
+            // 2. 执行 Pipeline
+            stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                for (VolunteerPrizesSendLogDO record : VolunteerPrizesSendSuccessList) {
+
+                    String volunteerPrizesListKey = String.format(RedisCacheConstant.VOLUNTEER_PRIZES_LIST, record.getVolunteerId());
+
+                    // 使用 CDK 作为唯一标识
+                    String field = record.getCdk();
+
+                    // 完整存入信息
+                    Map<String, Object> valueMap = new HashMap<>();
+                    valueMap.put("prizesId", record.getPrizesId());
+                    valueMap.put("prizeName", prizeName);
+                    valueMap.put("cdk", record.getCdk());
+                    valueMap.put("time", System.currentTimeMillis());
+
+                    String value = JSON.toJSONString(valueMap);
+
+                    connection.hashCommands().hSet(
+                            volunteerPrizesListKey.getBytes(),
+                            field.getBytes(),
+                            value.getBytes()
+                    );
+
+                    // 给奖品列表设置过期时间
+                    connection.keyCommands().expire(volunteerPrizesListKey.getBytes(), 30 * 24 * 60 * 60);
+                }
+                // 模板写法，返回null
+                return null;
+            });
+
+            log.info("[消费者] 用户奖品归档成功，已写入对应用户Hash，数量：{}", VolunteerPrizesSendSuccessList.size());
         }
-
     }
 
 
@@ -145,7 +175,7 @@ public class VolunteerPrizesSendConsumer implements RocketMQListener<MessageWrap
                         return Integer.parseInt(statusObj.toString());
                     }
 
-                    VolunteerPrizesDO prizesDO = volunteerPrizesMapper.selectById(batchId);
+                    VolunteerPrizesRespDTO prizesDO = volunteerPrizesService.findVolunteerPrizes(batchId);
                     if (prizesDO == null) {
                         // 数据库也没查到，说明 ID 错误，终止任务
                         return null;
