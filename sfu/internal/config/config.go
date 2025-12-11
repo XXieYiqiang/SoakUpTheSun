@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Log    Log          `mapstructure:"log" json:"log" yaml:"log"`
 	System SystemConfig `mapstructure:"system" json:"system" yaml:"system"`
+	Mysql  MysqlConfig  `mapstructure:"mysql" json:"mysql" yaml:"mysql"`
 }
 
 // InitConfig 初始化配置文件

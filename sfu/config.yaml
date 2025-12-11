@@ -2,6 +2,16 @@ system:
   port: 8080
   env: dev
 
+
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  username: root
+  password: sjk12345
+  database: sfu
+  max_idle_conns: 100
+  max_open_conns: 1000
+
 log:
   director: log
   retentionDay: 7
