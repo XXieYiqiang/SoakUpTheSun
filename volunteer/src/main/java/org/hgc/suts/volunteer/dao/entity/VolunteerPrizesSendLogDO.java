@@ -11,7 +11,7 @@ import lombok.Data;
  * 
  * @TableName volunteer_prizes_send_log
  */
-@TableName(value ="volunteer_prizes_send_log")
+@TableName(value ="t_volunteer_prizes_send_log")
 @Data
 public class VolunteerPrizesSendLogDO {
     /**

@@ -17,7 +17,7 @@ import java.util.Date;
  * 志愿者用户DO
  */
 @Data
-@TableName("volunteer_user")
+@TableName("t_volunteer_user")
 public class VolunteerUserDO implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;

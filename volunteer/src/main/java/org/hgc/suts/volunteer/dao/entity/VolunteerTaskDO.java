@@ -12,7 +12,7 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@TableName("volunteer_task")
+@TableName("t_volunteer_task")
 public class VolunteerTaskDO {
 
     /**

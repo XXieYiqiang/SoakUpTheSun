@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
  * 
  * @TableName volunteer_prizes_grab
  */
-@TableName(value ="volunteer_prizes_grab")
+@TableName(value ="t_volunteer_prizes_grab")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

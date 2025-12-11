@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
  * 任务失败记录表
  * @TableName volunteer_task_fail
  */
-@TableName(value ="volunteer_task_fail")
+@TableName(value ="t_volunteer_task_fail")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

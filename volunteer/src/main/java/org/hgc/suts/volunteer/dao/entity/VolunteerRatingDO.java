@@ -11,7 +11,7 @@ import lombok.Data;
  * 
  * @TableName volunteer_rating
  */
-@TableName(value ="volunteer_rating")
+@TableName(value ="t_volunteer_rating")
 @Data
 public class VolunteerRatingDO {
     /**
