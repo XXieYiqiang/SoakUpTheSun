@@ -1,6 +1,7 @@
 system:
   port: 8080
   env: dev
+  migrate: 1
 
 
 mysql:
@@ -14,9 +15,9 @@ mysql:
 
 log:
   director: log
-  retentionDay: 7
-  logInConsole: true
+  retention_day: 7
+  log_in_console: true
   levels: info
   format: json   # 输出格式:json,console
-  levelEncode: LowercaseColorLevelEncoder # 日志级别编码:LowercaseColorLevelEncoder,LowercaseLevelEncoder,UppercaseColorLevelEncoder,UppercaseLevelEncoder
-  showLine: true
+  level_encode: LowercaseColorLevelEncoder # 日志级别编码:LowercaseColorLevelEncoder,LowercaseLevelEncoder,UppercaseColorLevelEncoder,UppercaseLevelEncoder
+  show_line: true

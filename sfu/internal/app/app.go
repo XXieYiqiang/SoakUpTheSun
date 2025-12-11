@@ -19,7 +19,7 @@ func NewApp() *App {
 	// 初始化日志(全局变量)
 	logger.InitZapLog(&conf.Log)
 	// 初始化数据库
-	db := database.InitMysql(&conf.Mysql)
+	db := database.InitMysql(conf)
 	return &App{
 		Config: conf,
 		DB:     db,

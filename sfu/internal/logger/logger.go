@@ -17,7 +17,7 @@ var Log *zap.Logger
 // 默认日志目录
 const logDefaultPath = "log"
 
-func InitZapLog(logConf *config.Log) {
+func InitZapLog(logConf *config.LogConfig) {
 	if logConf == nil {
 		log.Fatalf("log config is nil")
 	}

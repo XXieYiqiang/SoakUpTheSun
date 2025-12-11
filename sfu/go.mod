@@ -11,6 +11,8 @@ require (
 	github.com/pion/webrtc/v4 v4.1.8
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.1
+	gorm.io/driver/mysql v1.6.0
+	gorm.io/gorm v1.31.1
 )
 
 require (
@@ -73,6 +75,4 @@ require (
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
-	gorm.io/driver/mysql v1.6.0 // indirect
-	gorm.io/gorm v1.31.1 // indirect
 )

@@ -6,19 +6,19 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type Log struct {
-	Director     string `mapstructure:"director" json:"director" yaml:"director"`             // 日志目录
-	Prefix       string `mapstructure:"prefix" json:"prefix" yaml:"prefix"`                   // 日志前缀
-	RetentionDay int    `mapstructure:"retentionDay" json:"retentionDay" yaml:"retentionDay"` // 日志保留天数
-	LevelEncode  string `mapstructure:"levelEncode" json:"levelEncode" yaml:"levelEncode"`    // 日志级别
-	Format       string `mapstructure:"format" json:"format" yaml:"format"`                   // 日志输出格式
-	Level        string `mapstructure:"levels" json:"levels" yaml:"levels"`                   // 日志级别
-	LogInConsole bool   `mapstructure:"logInConsole" json:"logInConsole" yaml:"logInConsole"` // 是否在控制台输出日志
-	ShowLine     bool   `mapstructure:"showLine" json:"showLine" yaml:"showLine"`             // 是否显示行号
+type LogConfig struct {
+	Director     string `mapstructure:"director" json:"director" yaml:"director"`                   // 日志目录
+	Prefix       string `mapstructure:"prefix" json:"prefix" yaml:"prefix"`                         // 日志前缀
+	RetentionDay int    `mapstructure:"retention_day" json:"retention_day" yaml:"retention_day"`    // 日志保留天数
+	LevelEncode  string `mapstructure:"level_encode" json:"level_encode" yaml:"level_encode"`       // 日志级别
+	Format       string `mapstructure:"format" json:"format" yaml:"format"`                         // 日志输出格式
+	Level        string `mapstructure:"levels" json:"levels" yaml:"levels"`                         // 日志级别
+	LogInConsole bool   `mapstructure:"log_in_console" json:"log_in_console" yaml:"log_in_console"` // 是否在控制台输出日志
+	ShowLine     bool   `mapstructure:"show_line" json:"show_line" yaml:"show_line"`                // 是否显示行号
 }
 
 // Levels 根据字符串转化为 zapcore.Levels
-func (c *Log) Levels() []zapcore.Level {
+func (c *LogConfig) Levels() []zapcore.Level {
 	levels := make([]zapcore.Level, 0, 7)
 	level, err := zapcore.ParseLevel(c.Level)
 	if err != nil {
@@ -30,7 +30,7 @@ func (c *Log) Levels() []zapcore.Level {
 	return levels
 }
 
-func (l *Log) Encoder() zapcore.Encoder {
+func (l *LogConfig) Encoder() zapcore.Encoder {
 	config := zapcore.EncoderConfig{
 		TimeKey:       "time",
 		NameKey:       "name",
@@ -52,7 +52,7 @@ func (l *Log) Encoder() zapcore.Encoder {
 	return zapcore.NewConsoleEncoder(config)
 }
 
-func (l *Log) LevelEncoder() zapcore.LevelEncoder {
+func (l *LogConfig) LevelEncoder() zapcore.LevelEncoder {
 	switch l.LevelEncode {
 	case "LowercaseLevelEncoder": // 小写编码器(默认)
 		return zapcore.LowercaseLevelEncoder

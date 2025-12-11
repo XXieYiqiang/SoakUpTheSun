@@ -11,11 +11,11 @@ import (
 
 type ZapCore struct {
 	level   zapcore.Level
-	logConf *config.Log
+	logConf *config.LogConfig
 	zapcore.Core
 }
 
-func NewZapCore(logConf *config.Log, level zapcore.Level) *ZapCore {
+func NewZapCore(logConf *config.LogConfig, level zapcore.Level) *ZapCore {
 	core := &ZapCore{
 		level:   level,
 		logConf: logConf,
