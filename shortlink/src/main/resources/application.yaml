@@ -12,7 +12,9 @@ spring:
       password: redis
       timeout: 50000
 
-
+short-link:
+  domain:
+    default: 127.0.0.1:10011
 
 
 #http://localhost:10010/doc.html
