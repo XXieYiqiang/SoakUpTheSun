@@ -23,7 +23,6 @@ public interface VolunteerRatingMapper extends BaseMapper<VolunteerRatingDO> {
      * 2. rating = 0 (普通): +0.7 分
      */
     @Select("SELECT user_id as userId, " +
-            // 【核心修改点】 SQL 逻辑：如果是 1 则加 1.0，否则加 0.7
             "SUM(CASE WHEN rating = 1 THEN 1.0 ELSE 0.7 END) as totalAddScore, " +
             "GROUP_CONCAT(id) as idListStr " +
             "FROM volunteer_rating " +
