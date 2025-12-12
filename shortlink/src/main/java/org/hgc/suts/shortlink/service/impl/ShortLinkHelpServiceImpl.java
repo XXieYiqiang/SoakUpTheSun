@@ -58,6 +58,9 @@ public class ShortLinkHelpServiceImpl extends ServiceImpl<ShortLinkHelpMapper, S
 
     @Value("${short-link.domain.default}")
     private String createShortLinkDefaultDomain;
+    @Value("${short-link.domain.default}")
+    private String domain;
+
     // 定义过期时间常量：10分钟
     private static final long EXPIRE_MINUTES = 10;
 
@@ -117,27 +120,22 @@ public class ShortLinkHelpServiceImpl extends ServiceImpl<ShortLinkHelpMapper, S
             return;
         }
 
-        String serverName = request.getServerName();
-        String serverPort = Optional.of(request.getServerPort())
-                .filter(each -> !Objects.equals(each, 80))
-                .map(String::valueOf)
-                .map(each -> ":" + each)
-                .orElse("");
-        String fullShortUrl = serverName + serverPort + "/" + requestParm.shortUri;
+        String fullShortUrl = domain + "/" + requestParm.shortUri;
 
-        String cacheValue = stringRedisTemplate.opsForValue().get(String.format(RedisCacheConstant.SHORT_LINK_GOTO, fullShortUrl));
-        if (StrUtil.isNotBlank(cacheValue)) {
-
-            ShortLinkHelpDO shortLinkHelpDO = JSON.parseObject(cacheValue, ShortLinkHelpDO.class);
-            // 验证并跳转
-            validateAndRedirect(shortLinkHelpDO,requestParm,response);
-            return;
-        }
         boolean contains = shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl);
         if (!contains) {
             ((HttpServletResponse) response).sendRedirect("/page/notfound");
             return;
         }
+
+        String cacheValue = stringRedisTemplate.opsForValue().get(String.format(RedisCacheConstant.SHORT_LINK_GOTO, fullShortUrl));
+        if (StrUtil.isNotBlank(cacheValue)) {
+            ShortLinkHelpDO shortLinkHelpDO = JSON.parseObject(cacheValue, ShortLinkHelpDO.class);
+            // 验证并跳转
+            validateAndRedirect(shortLinkHelpDO,requestParm,response);
+            return;
+        }
+
         String gotoIsNullShortLink = stringRedisTemplate.opsForValue().get(String.format(RedisCacheConstant.SHORT_LINK_GOTO_IS_NULL_KEY, fullShortUrl));
         if (StrUtil.isNotBlank(gotoIsNullShortLink)) {
             ((HttpServletResponse) response).sendRedirect("/page/notfound");
@@ -163,7 +161,7 @@ public class ShortLinkHelpServiceImpl extends ServiceImpl<ShortLinkHelpMapper, S
                     .eq(ShortLinkHelpDO::getFullShortLink, fullShortUrl);
             ShortLinkHelpDO shortLinkHelpDO = shortLinkHelpMapper.selectOne(linkQueryWrapper);
             if (shortLinkHelpDO == null || shortLinkHelpDO.getExpireTime().before(new Date())) {
-                stringRedisTemplate.opsForValue().set(String.format(RedisCacheConstant.SHORT_LINK_GOTO_IS_NULL_KEY, fullShortUrl), "-", 30, TimeUnit.MINUTES);
+                stringRedisTemplate.opsForValue().set(String.format(RedisCacheConstant.SHORT_LINK_GOTO_IS_NULL_KEY, fullShortUrl), "-", 2, TimeUnit.MINUTES);
                 ((HttpServletResponse) response).sendRedirect("/page/notfound");
                 return;
             }
