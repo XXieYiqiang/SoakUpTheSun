@@ -27,11 +27,6 @@ type Room struct {
 	Mutex           *sync.Mutex                            // 锁
 }
 
-// type Rooms struct {
-// 	Rooms map[string]*Room // 房间map
-// 	Mutex *sync.Mutex      // 锁
-// }
-
 type User struct {
 	UID   string   // 用户UID
 	Addr  net.IP   // 用户IP
