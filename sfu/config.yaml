@@ -1,6 +1,6 @@
 system:
   port: 8080
-  env: dev
+  env: debug
   migrate: 1
 
 

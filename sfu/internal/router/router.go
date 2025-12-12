@@ -1,9 +1,9 @@
 package router
 
 import (
+	"sfu/internal/api"
 	"sfu/internal/app"
 	"sfu/internal/middleware"
-	"sfu/internal/ws"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,10 +23,13 @@ func NewRouter(app *app.App) *gin.Engine {
 
 	router := gin.New()
 
-	router.Use(middleware.RecoveryMiddleware(true))
+	router.Use(middleware.RecoveryMiddleware(true), gin.Logger())
 
-	userRoomApi := ws.NewUserRoomApi(app)
-	router.GET("/create-room", userRoomApi.CreateRoom)
+	api := api.NewAPI(app)
+	roomApi := api.RoomApi
+
+	router.POST("/room/create", roomApi.SaveRoom)
+	router.GET("/room", roomApi.JoinRoom)
 
 	return router
 }

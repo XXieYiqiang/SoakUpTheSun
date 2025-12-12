@@ -1,8 +1,6 @@
 package ws
 
 import (
-	"net"
-	"net/http"
 	"sync"
 
 	"github.com/google/uuid"
@@ -14,56 +12,61 @@ import (
 type UserRole string
 
 const (
-	RolePatient UserRole = "patient"   // 患者
-	RoleDoctor  UserRole = "volunteer" // 志愿者
+	RolePatient   UserRole = "patient"   // 患者
+	RoleVolunteer UserRole = "volunteer" // 志愿者
 )
 
+var (
+	Rooms   = make(map[string]*Room)
+	RoomsMu sync.Mutex
+)
+
+// Room 代表一个会议室，包含所有用户和他们发布的轨道
 type Room struct {
-	ID              string                                 // 房间ID
-	Users           map[string]*User                       // 房间用户
-	wsUpgrader      websocket.Upgrader                     // websocket 升级器
-	peerConnections []peerConnectionState                  // 房间peer连接
-	tracksLocals    map[string]*webrtc.TrackLocalStaticRTP // 房间track
-	Mutex           *sync.Mutex                            // 锁
+	ID     string
+	Users  map[string]*User       // UID -> User
+	Tracks map[string]*UserTracks // Publisher UID -> UserTracks
+	Mu     sync.RWMutex           // 保护 Users 和 Tracks
 }
 
+// User 代表一个连接到 SFU 的客户端
 type User struct {
-	UID   string   // 用户UID
-	Addr  net.IP   // 用户IP
-	Name  string   // 用户名称
-	Owner bool     // 是否为房间所有者
-	Role  UserRole // 用户角色
+	UID              string
+	WS               *websocket.Conn
+	UpPC             *webrtc.PeerConnection // 上行 PC (Publisher)
+	DownPC           *webrtc.PeerConnection // 下行 PC (Subscriber)
+	Role             UserRole               // 用户角色
+	closed           bool
+	mu               sync.Mutex                // 保护 UpPC, DownPC, closed
+	wsMu             sync.Mutex                // 保护 WS 写入操作
+	UpCandidateQueue []webrtc.ICECandidateInit // 新增：用于缓冲在上行 Offer 之前到达的 ICE Candidate
+	candidateMu      sync.Mutex                // 新增锁来保护 UpCandidateQueue，
 }
 
-type peerConnectionState struct {
-	peerConnection *webrtc.PeerConnection
-	*websocket.Conn
+// UserTracks 存储用户发布的本地轨道
+type UserTracks struct {
+	Audio *webrtc.TrackLocalStaticRTP
+	Video *webrtc.TrackLocalStaticRTP
 }
 
-/*
- * @Description: 创建房间
- * @Return *Room 房间
- */
-func NewRoom(user *User) *Room {
-	// 患者发起房间
-	patient := &User{
-		UID:   user.UID,
-		Addr:  user.Addr,
-		Name:  user.Name,
-		Owner: true,
-		Role:  RolePatient,
+func NewRoom() *Room {
+	r := &Room{
+		ID:     uuid.New().String(),
+		Users:  make(map[string]*User),
+		Tracks: make(map[string]*UserTracks),
 	}
-	usersMap := make(map[string]*User)
-	usersMap[patient.UID] = patient
-	return &Room{
-		ID:           uuid.New().String(),
-		Users:        usersMap,
-		Mutex:        new(sync.Mutex),
-		tracksLocals: make(map[string]*webrtc.TrackLocalStaticRTP),
-		wsUpgrader: websocket.Upgrader{
-			ReadBufferSize:  1024, // 读取缓冲区大小
-			WriteBufferSize: 1024, // 写入缓冲区大小
-			CheckOrigin:     func(r *http.Request) bool { return true },
-		},
+	RoomsMu.Lock()
+	Rooms[r.ID] = r
+	RoomsMu.Unlock()
+	return r
+}
+
+func GetRoom(id string) (*Room, bool) {
+	RoomsMu.Lock()
+	defer RoomsMu.Unlock()
+	r, ok := Rooms[id]
+	if !ok {
+		return nil, false
 	}
+	return r, true
 }

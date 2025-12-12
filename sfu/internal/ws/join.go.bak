@@ -1,0 +1,362 @@
+package ws
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+
+	"github.com/gorilla/websocket"
+	"github.com/pion/rtp"
+	"github.com/pion/webrtc/v4"
+)
+
+var Upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024, // 读取缓冲区大小
+	WriteBufferSize: 1024, // 写入缓冲区大小
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
+type SignalMessage struct {
+	Event string          `json:"event"`
+	Data  json.RawMessage `json:"data"`
+}
+
+// 客户端向服务器发送的offer
+type UpOfferPayload struct {
+	UID string `json:"uid"`
+	SDP string `json:"sdp"`
+}
+
+// 通用 SDP 载荷
+type SDPPayload struct {
+	SDP string `json:"sdp"`
+}
+
+// 客户端向服务器发送的 ICE 候选
+type CandidatePayload struct {
+	Candidate webrtc.ICECandidateInit `json:"candidate"`
+}
+
+// 服务器向客户端发送的 offer 载荷
+type DownOfferPayload struct {
+	From string `json:"from"` // publisher UID
+	SDP  string `json:"sdp"`
+}
+
+// 服务器向客户端发送的 ICE 候选
+type DownCandidatePayload struct {
+	From      string                  `json:"from"`
+	Candidate webrtc.ICECandidateInit `json:"candidate"`
+}
+
+// 处理用户的 WebSocket 消息
+func HandleWS(room *Room, user *User) {
+	defer func() {
+		cleanupUser(room, user)
+	}()
+
+	// 读取循环
+	for {
+		_, raw, err := user.WS.ReadMessage()
+		if err != nil {
+			// 关闭用户连接
+			return
+		}
+		var msg SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			continue
+		}
+
+		switch msg.Event {
+		case "up_offer":
+			// 客户端向服务器发送的 offer
+			var p UpOfferPayload
+			if err := json.Unmarshal(msg.Data, &p); err != nil {
+				continue
+			}
+			// 处理客户端发送的 offer
+			go handleUpOffer(room, user, p.SDP)
+		case "up_candidate":
+			var p CandidatePayload
+			if err := json.Unmarshal(msg.Data, &p); err != nil {
+				continue
+			}
+			if user.UpPC != nil {
+				_ = user.UpPC.AddICECandidate(p.Candidate)
+			}
+		case "down_answer":
+			// 服务器向客户端发送的 answer 载荷必须包含 "from" 字段，以指示此 answer 对应哪个 publisher offer
+			var rawMap map[string]json.RawMessage
+			if err := json.Unmarshal(msg.Data, &rawMap); err == nil {
+				var from string
+				if v, ok := rawMap["from"]; ok {
+					_ = json.Unmarshal(v, &from)
+				}
+				if v, ok := rawMap["sdp"]; ok {
+					var sdp string
+					_ = json.Unmarshal(v, &sdp)
+					setDownAnswer(user, sdp)
+				}
+			}
+		case "down_candidate":
+			// 客户端向服务器发送的 ICE 候选载荷必须包含 "from" 字段，以指示此候选对应哪个 publisher offer
+			var rawMap map[string]json.RawMessage
+			if err := json.Unmarshal(msg.Data, &rawMap); err == nil {
+				var from string
+				var cand webrtc.ICECandidateInit
+				if v, ok := rawMap["from"]; ok {
+					_ = json.Unmarshal(v, &from)
+				}
+				if v, ok := rawMap["candidate"]; ok {
+					_ = json.Unmarshal(v, &cand)
+				}
+				// 添加到用户的 DownPC（每个订阅者只有一个 DownPC；我们根据发布者标记的候选者进行路由）
+				// 注意：在本实现中，每个用户只有一个 DownPC，因此将候选添加到 DownPC
+				if user.DownPC != nil {
+					_ = user.DownPC.AddICECandidate(cand)
+				}
+			}
+		case "subscribe":
+			// 可选：客户端可以请求订阅特定发布者
+		default:
+		}
+	}
+}
+
+// 处理客户端发送的 offer (client -> server)
+func handleUpOffer(room *Room, user *User, sdp string) {
+	// 如果不存在 为上游创建 PeerConnection
+	api := webrtc.NewAPI()
+	pc, err := api.NewPeerConnection(webrtc.Configuration{})
+	if err != nil {
+		return
+	}
+
+	user.mu.Lock()
+	user.UpPC = pc
+	user.mu.Unlock()
+
+	// 当 UpPC 生成 ICE 候选时，将其发送给客户端
+	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
+		if c == nil {
+			return
+		}
+		candidateJSON, _ := json.Marshal(c.ToJSON())
+		sendToWS(user.WS, "up_candidate", map[string]json.RawMessage{"candidate": candidateJSON})
+	})
+
+	// 当上游 PeerConnection 收到track时，创建一个本地轨道并将其分发给订阅者
+	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+		// 为每个收到的 track 创建一个本地 track
+		capability := remote.Codec().RTPCodecCapability
+		var err error
+		local, err := webrtc.NewTrackLocalStaticRTP(capability, remote.ID(), user.UID)
+		if err != nil {
+			return
+		}
+
+		room.Mu.Lock()
+		ut := room.Tracks[user.UID]
+		if ut == nil {
+			ut = &UserTracks{}
+			room.Tracks[user.UID] = ut
+		}
+		if remote.Kind() == webrtc.RTPCodecTypeAudio {
+			ut.Audio = local
+		} else if remote.Kind() == webrtc.RTPCodecTypeVideo {
+			ut.Video = local
+		}
+		room.Mu.Unlock()
+
+		// 从远程 track 读取 RTP 包并写入本地 track (remote -> local)
+		go func() {
+			buf := make([]byte, 1500)
+			pkt := &rtp.Packet{}
+			for {
+				n, _, readErr := remote.Read(buf)
+				if readErr != nil {
+					break
+				}
+				if err := pkt.Unmarshal(buf[:n]); err != nil {
+					break
+				}
+				// 移除扩展字段，因为只是简单地转发 RTP 包
+				pkt.Extension = false
+				pkt.Extensions = nil
+				_ = local.WriteRTP(pkt)
+			}
+
+			// 当远程 track 结束时，从房间中移除本地 track
+			room.Mu.Lock()
+			if trks, ok := room.Tracks[user.UID]; ok {
+				if remote.Kind() == webrtc.RTPCodecTypeAudio {
+					trks.Audio = nil
+				} else {
+					trks.Video = nil
+				}
+			}
+			room.Mu.Unlock()
+		}()
+
+		// 为每个订阅者添加本地 track
+		distributeTrackToAllSubscribers(room, user.UID, local)
+	})
+
+	// 设置远程描述并创建 answer
+	offer := webrtc.SessionDescription{
+		Type: webrtc.SDPTypeOffer,
+		SDP:  sdp,
+	}
+	if err = pc.SetRemoteDescription(offer); err != nil {
+		return
+	}
+	answer, err := pc.CreateAnswer(nil)
+	if err != nil {
+		return
+	}
+	if err := pc.SetLocalDescription(answer); err != nil {
+		return
+	}
+
+	// 向客户端发送 answer
+	sendToWS(user.WS, "up_answer", map[string]string{"sdp": answer.SDP})
+}
+
+// 为每个订阅者添加本地 track (local -> downPC)
+func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webrtc.TrackLocal) {
+	room.Mu.RLock()
+	users := make([]*User, 0, len(room.Users))
+	for _, u := range room.Users {
+		users = append(users, u)
+	}
+	room.Mu.RUnlock()
+
+	for _, u := range users {
+		if u.UID == publisherUID {
+			continue
+		}
+		if err := ensureDownPC(u); err != nil {
+			continue
+		}
+		if _, err := u.DownPC.AddTrack(track); err != nil {
+			continue
+		}
+		// 添加 Track 后需重新协商（服务端需创建 Offer 并下发 down_offer 消息）
+		// 为每个（发布者->订阅者）链路触发重新协商，方式是创建包含当前所有 Track 的新 Offer
+		go createAndSendDownOffer(u, publisherUID)
+	}
+}
+
+// 用户确保存在 DownPC（每个订阅者只有一个 DownPC）
+func ensureDownPC(user *User) error {
+	user.mu.Lock()
+	defer user.mu.Unlock()
+	if user.DownPC != nil {
+		return nil
+	}
+
+	api := webrtc.NewAPI()
+	pc, err := api.NewPeerConnection(webrtc.Configuration{})
+	if err != nil {
+		return err
+	}
+	user.DownPC = pc
+
+	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
+		if c == nil {
+			return
+		}
+		candidateJSON, _ := json.Marshal(c.ToJSON())
+		sendToWS(user.WS, "down_candidate", map[string]json.RawMessage{"candidate": candidateJSON})
+	})
+
+	// optional: handle connection state changes etc
+	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
+		if s == webrtc.PeerConnectionStateFailed || s == webrtc.PeerConnectionStateClosed {
+			// cleanup maybe
+		}
+	})
+
+	return nil
+}
+
+// 从服务端的 downPC 创建 Offer 并发送给订阅者（客户端需回复 down_answer 消息）
+// 在载荷中携带发布者 UID，以便客户端将媒体轨道关联到正确的远端数据源
+func createAndSendDownOffer(subscriber *User, publisherUID string) {
+	subscriber.mu.Lock()
+	pc := subscriber.DownPC
+	subscriber.mu.Unlock()
+	if pc == nil {
+		return
+	}
+
+	// create offer
+	offer, err := pc.CreateOffer(nil)
+	if err != nil {
+		return
+	}
+	if err := pc.SetLocalDescription(offer); err != nil {
+		return
+	}
+
+	payload := DownOfferPayload{
+		From: publisherUID,
+		SDP:  offer.SDP,
+	}
+	b, _ := json.Marshal(payload)
+	sendRawToWS(subscriber.WS, "down_offer", b)
+}
+
+// 当客户端返回 down_answer 消息时，将其设为远端描述（Remote Description）
+func setDownAnswer(user *User, sdp string) error {
+	user.mu.Lock()
+	pc := user.DownPC
+	user.mu.Unlock()
+	if pc == nil {
+		return errors.New("no down pc")
+	}
+	ans := webrtc.SessionDescription{
+		Type: webrtc.SDPTypeAnswer,
+		SDP:  sdp,
+	}
+	if err := pc.SetRemoteDescription(ans); err != nil {
+		return err
+	}
+	return nil
+}
+
+func sendToWS(conn *websocket.Conn, event string, data any) {
+	payload, _ := json.Marshal(data)
+	sendRawToWS(conn, event, payload)
+}
+func sendRawToWS(conn *websocket.Conn, event string, raw json.RawMessage) {
+	msg := SignalMessage{
+		Event: event,
+		Data:  raw,
+	}
+	b, _ := json.Marshal(msg)
+	_ = conn.WriteMessage(websocket.TextMessage, b)
+}
+
+func cleanupUser(room *Room, user *User) {
+	user.mu.Lock()
+	if user.closed {
+		user.mu.Unlock()
+		return
+	}
+	user.closed = true
+	if user.UpPC != nil {
+		_ = user.UpPC.Close()
+	}
+	if user.DownPC != nil {
+		_ = user.DownPC.Close()
+	}
+	_ = user.WS.Close()
+	user.mu.Unlock()
+
+	room.Mu.Lock()
+	delete(room.Users, user.UID)
+	delete(room.Tracks, user.UID)
+	room.Mu.Unlock()
+
+}
