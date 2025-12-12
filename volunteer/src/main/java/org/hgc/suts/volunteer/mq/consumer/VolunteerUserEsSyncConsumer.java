@@ -85,7 +85,6 @@ public class VolunteerUserEsSyncConsumer implements RocketMQListener<MessageWrap
             // 8. 捕获执行过程中的任何异常（如网络中断、ES宕机、序列化失败等）并记录日志
             log.error("[消费者] 志愿者推送es任务执行错误，消费批次为：{}", event.getBatchId(), e);
 
-            // 【关键点】再次抛出异常。
             // 必须抛出异常让 RocketMQ 感知到消费失败，否则 RocketMQ 会认为消费成功从而提交 Offset，导致数据丢失。
             throw new RuntimeException("ES同步失败，触发重试.", e);
         }
