@@ -1,8 +1,12 @@
 package org.hgc.suts.shortlink.service;
 
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import lombok.SneakyThrows;
 import org.hgc.suts.shortlink.dao.entity.ShortLinkHelpDO;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.hgc.suts.shortlink.dto.req.ShortLinkHelpReqDTO;
+import org.hgc.suts.shortlink.dto.req.ShortLinkHelpRestoreReqDTO;
 import org.hgc.suts.shortlink.dto.resp.ShortLinkHelpRespDTO;
 
 /**
@@ -19,4 +23,11 @@ public interface ShortLinkHelpService extends IService<ShortLinkHelpDO> {
      */
     ShortLinkHelpRespDTO createShortLinkHelp(ShortLinkHelpReqDTO requestParam);
 
+
+    /**
+     * 跳转短链接
+     * @param requestParm 请求参数
+     */
+    @SneakyThrows
+    void restoreUrl(ShortLinkHelpRestoreReqDTO requestParm, ServletRequest request, ServletResponse response);
 }
