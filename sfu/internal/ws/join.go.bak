@@ -63,7 +63,7 @@ func HandleWS(room *Room, user *User) {
 			return
 		}
 		var msg SignalMessage
-		if err := json.Unmarshal(raw, &msg); err != nil {
+		if err := sonic.Unmarshal(raw, &msg); err != nil {
 			continue
 		}
 
@@ -71,14 +71,14 @@ func HandleWS(room *Room, user *User) {
 		case "up_offer":
 			// 客户端向服务器发送的 offer
 			var p UpOfferPayload
-			if err := json.Unmarshal(msg.Data, &p); err != nil {
+			if err := sonic.Unmarshal(msg.Data, &p); err != nil {
 				continue
 			}
 			// 处理客户端发送的 offer
 			go handleUpOffer(room, user, p.SDP)
 		case "up_candidate":
 			var p CandidatePayload
-			if err := json.Unmarshal(msg.Data, &p); err != nil {
+			if err := sonic.Unmarshal(msg.Data, &p); err != nil {
 				continue
 			}
 			if user.UpPC != nil {
@@ -87,28 +87,28 @@ func HandleWS(room *Room, user *User) {
 		case "down_answer":
 			// 服务器向客户端发送的 answer 载荷必须包含 "from" 字段，以指示此 answer 对应哪个 publisher offer
 			var rawMap map[string]json.RawMessage
-			if err := json.Unmarshal(msg.Data, &rawMap); err == nil {
+			if err := sonic.Unmarshal(msg.Data, &rawMap); err == nil {
 				var from string
 				if v, ok := rawMap["from"]; ok {
-					_ = json.Unmarshal(v, &from)
+					_ = sonic.Unmarshal(v, &from)
 				}
 				if v, ok := rawMap["sdp"]; ok {
 					var sdp string
-					_ = json.Unmarshal(v, &sdp)
+					_ = sonic.Unmarshal(v, &sdp)
 					setDownAnswer(user, sdp)
 				}
 			}
 		case "down_candidate":
 			// 客户端向服务器发送的 ICE 候选载荷必须包含 "from" 字段，以指示此候选对应哪个 publisher offer
 			var rawMap map[string]json.RawMessage
-			if err := json.Unmarshal(msg.Data, &rawMap); err == nil {
+			if err := sonic.Unmarshal(msg.Data, &rawMap); err == nil {
 				var from string
 				var cand webrtc.ICECandidateInit
 				if v, ok := rawMap["from"]; ok {
-					_ = json.Unmarshal(v, &from)
+					_ = sonic.Unmarshal(v, &from)
 				}
 				if v, ok := rawMap["candidate"]; ok {
-					_ = json.Unmarshal(v, &cand)
+					_ = sonic.Unmarshal(v, &cand)
 				}
 				// 添加到用户的 DownPC（每个订阅者只有一个 DownPC；我们根据发布者标记的候选者进行路由）
 				// 注意：在本实现中，每个用户只有一个 DownPC，因此将候选添加到 DownPC

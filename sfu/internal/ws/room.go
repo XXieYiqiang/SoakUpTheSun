@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"sfu/utils/base58x"
 	"sync"
 
 	"github.com/google/uuid"
@@ -51,7 +52,7 @@ type UserTracks struct {
 
 func NewRoom() *Room {
 	r := &Room{
-		ID:     uuid.New().String(),
+		ID:     base58x.UUIDToBase58(uuid.New()),
 		Users:  make(map[string]*User),
 		Tracks: make(map[string]*UserTracks),
 	}
@@ -69,4 +70,10 @@ func GetRoom(id string) (*Room, bool) {
 		return nil, false
 	}
 	return r, true
+}
+
+func DeleteRoom(id string) {
+	RoomsMu.Lock()
+	defer RoomsMu.Unlock()
+	delete(Rooms, id)
 }

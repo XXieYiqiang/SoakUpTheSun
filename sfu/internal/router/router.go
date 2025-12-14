@@ -28,8 +28,9 @@ func NewRouter(app *app.App) *gin.Engine {
 	api := api.NewAPI(app)
 	roomApi := api.RoomApi
 
-	router.POST("/room/create", roomApi.SaveRoom)
-	router.GET("/room", roomApi.JoinRoom)
+	router.POST("/room", roomApi.SaveRoom)        // 创建房间
+	router.GET("/room/join", roomApi.JoinRoom)    // 加入房间
+	router.POST("/room/close", roomApi.CloseRoom) // 关闭房间
 
 	return router
 }

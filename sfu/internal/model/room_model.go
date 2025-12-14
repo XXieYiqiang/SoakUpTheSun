@@ -12,6 +12,12 @@ type Room struct {
 	Status      string `gorm:"column:status;type:varchar(20);not null;default:'active';comment:房间状态(active-开启中/full-已满/closed-已关闭)"`
 }
 
+const (
+	RoomStatusActive = "active"
+	RoomStatusFull   = "full"
+	RoomStatusClosed = "closed"
+)
+
 func (Room) TableName() string {
 	return "t_room"
 }

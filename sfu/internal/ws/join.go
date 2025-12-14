@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sfu/internal/logger"
 
+	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v4"
@@ -61,7 +62,7 @@ func HandleWS(room *Room, user *User) {
 			return // 关闭用户连接
 		}
 		var msg SignalMessage
-		if err := json.Unmarshal(raw, &msg); err != nil {
+		if err := sonic.Unmarshal(raw, &msg); err != nil {
 			logger.Log.Sugar().Errorf("解析信号消息失败,uid:%s,err:%v", user.UID, err)
 			continue
 		}
@@ -69,7 +70,7 @@ func HandleWS(room *Room, user *User) {
 		switch msg.Event {
 		case "up_offer":
 			var p UpOfferPayload
-			if err := json.Unmarshal(msg.Data, &p); err != nil {
+			if err := sonic.Unmarshal(msg.Data, &p); err != nil {
 				logger.Log.Sugar().Errorf("解析up_offer数据失败,uid:%s,err:%v", user.UID, err)
 				continue
 			}
@@ -77,7 +78,7 @@ func HandleWS(room *Room, user *User) {
 
 		case "up_candidate":
 			var p CandidatePayload
-			if err := json.Unmarshal(msg.Data, &p); err != nil {
+			if err := sonic.Unmarshal(msg.Data, &p); err != nil {
 				logger.Log.Sugar().Errorf("解析up_candidate数据失败,uid:%s,err:%v", user.UID, err)
 				continue
 			}
@@ -92,7 +93,7 @@ func HandleWS(room *Room, user *User) {
 
 		case "down_answer":
 			var p SDPPayload
-			if err := json.Unmarshal(msg.Data, &p); err != nil {
+			if err := sonic.Unmarshal(msg.Data, &p); err != nil {
 				logger.Log.Sugar().Errorf("解析down_answer数据失败,uid:%s,err:%v", user.UID, err)
 				continue
 			}
@@ -102,7 +103,7 @@ func HandleWS(room *Room, user *User) {
 
 		case "down_candidate":
 			var p CandidatePayload
-			if err := json.Unmarshal(msg.Data, &p); err != nil {
+			if err := sonic.Unmarshal(msg.Data, &p); err != nil {
 				logger.Log.Sugar().Errorf("解析down_candidate数据失败,uid:%s,err:%v", user.UID, err)
 				continue
 			}
