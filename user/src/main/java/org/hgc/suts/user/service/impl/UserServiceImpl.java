@@ -27,6 +27,7 @@ import org.hgc.suts.user.dto.req.UserRegisterReqDTO;
 import org.hgc.suts.user.dto.req.UserUpdateReqDTO;
 import org.hgc.suts.user.dto.resp.UserLoginRespDTO;
 import org.hgc.suts.user.dto.resp.UserRespDTO;
+import org.hgc.suts.user.remote.PictureRemoteService;
 import org.hgc.suts.user.service.UserService;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
@@ -59,7 +60,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
     private final RedissonClient redissonClient;
     private final StringRedisTemplate stringRedisTemplate;
-
+    private final PictureRemoteService pictureRemoteService;
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void register(UserRegisterReqDTO requestParam) {
@@ -81,11 +82,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             userDO.setUserPassword(getEncryptPassword(requestParam.getUserPassword()));
             baseMapper.insert(userDO);
             userRegisterCachePenetrationBloomFilter.add(requestParam.getUserAccount());
+            pictureRemoteService.createPictureSpace(userDO.getId());
         } catch (DuplicateKeyException ex) {
             throw new ClientException(BaseErrorCode.USER_ACCOUNT_EXIST_ERROR);
         } finally {
             lock.unlock();
         }
+
+
     }
 
 
