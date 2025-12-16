@@ -18,6 +18,13 @@ spring:
       discovery:
         server-addr: 127.0.0.1:8848
 
+cos:
+  client:
+    host: https://yunku-1387421470.cos.ap-beijing.myqcloud.com
+    secretId: AKIDDIApGTTHuKWUEl4A9xd8QULyNYcT6Vgd
+    secretKey: oRt89wXw8D6mIsIWYOr7B2qUzNYVFwgM
+    region: ap-beijing
+    bucket: yunku-1387421470
 
 
 #http://localhost:10010/doc.html

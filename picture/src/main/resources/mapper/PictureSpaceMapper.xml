@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.hgc.suts.picture.dao.mapper.PictureSpaceMapper">
 
-    <resultMap id="BaseResultMap" type="org.hgc.suts.picture.dao.entity.PictureSpace">
+    <resultMap id="BaseResultMap" type="org.hgc.suts.picture.dao.entity.PictureSpaceDO">
             <id property="id" column="id" />
             <result property="spaceName" column="space_name" />
             <result property="maxSize" column="max_size" />
