@@ -434,3 +434,89 @@ func cleanupUser(room *Room, user *User) {
 	logger.Log.Sugar().Infof("用户 %s 从房间 %s 移除.", user.UID, room.ID)
 	room.Mu.Unlock()
 }
+
+func cleanupUserV2(room *Room, user *User) {
+	user.mu.Lock()
+	if user.closed {
+		user.mu.Unlock()
+		return
+	}
+	user.closed = true
+
+	logger.Log.Sugar().Infof("清理用户 %s...", user.UID)
+
+	if user.UpPC != nil {
+		if err := user.UpPC.Close(); err != nil {
+			logger.Log.Sugar().Errorf("关闭UpPC失败,uid:%s,err:%v", user.UID, err)
+		}
+	}
+	if user.DownPC != nil {
+		if err := user.DownPC.Close(); err != nil {
+			logger.Log.Sugar().Errorf("关闭DownPC失败,uid:%s,err:%v", user.UID, err)
+		}
+	}
+	if err := user.WS.Close(); err != nil {
+		logger.Log.Sugar().Errorf("关闭WS失败,uid:%s,err:%v", user.UID, err)
+	}
+	user.mu.Unlock()
+
+	room.Mu.Lock()
+	delete(room.Users, user.UID)
+
+	// 删除 Tracks 记录，否则房间状态不准确
+	delete(room.Tracks, user.UID)
+
+	logger.Log.Sugar().Infof("用户 %s 从房间 %s 移除.", user.UID, room.ID)
+	room.Mu.Unlock()
+
+	// 通知所有订阅者，移除该用户（发布者）的轨道
+	// 只要该用户是发布者，就通知其他用户进行清理
+	notifySubscribersToRemoveTracks(room, user.UID)
+}
+
+// 通知所有订阅者移除指定发布者的轨道
+func notifySubscribersToRemoveTracks(room *Room, publisherUID string) {
+	room.Mu.RLock()
+	users := make([]*User, 0, len(room.Users))
+	for _, u := range room.Users {
+		users = append(users, u)
+	}
+	room.Mu.RUnlock()
+
+	for _, u := range users {
+		if u.UID == publisherUID {
+			continue
+		}
+
+		u.mu.Lock()
+		pc := u.DownPC
+		u.mu.Unlock()
+
+		if pc == nil {
+			continue
+		}
+
+		var needsNegotiation bool
+
+		for _, sender := range pc.GetSenders() {
+			track := sender.Track()
+			if track == nil {
+				continue
+			}
+
+			if track.StreamID() == publisherUID {
+				if err := pc.RemoveTrack(sender); err != nil {
+					logger.Log.Sugar().Errorf("从订阅者 %s 的 DownPC 移除轨道失败 (发布者: %s), 错误: %v", u.UID, publisherUID, err)
+					continue
+				}
+				needsNegotiation = true
+				logger.Log.Sugar().Infof("成功从订阅者 %s 移除发布者 %s 的轨道。", u.UID, publisherUID)
+			}
+		}
+
+		if needsNegotiation {
+			// 当使用 RemoveTrack 成功后，需要发送新的 Offer
+			go createAndSendDownOffer(u, "stream_cleanup") // 更好的提示信息
+		}
+	}
+}
