@@ -164,7 +164,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 			}
 		}()
 
-		//创建本地 track (TrackLocalStaticRTP)
+		// 创建本地 track (TrackLocalStaticRTP)
 		capability := remote.Codec().RTPCodecCapability
 		var local *webrtc.TrackLocalStaticRTP
 		local, err = webrtc.NewTrackLocalStaticRTP(capability, remote.ID(), user.UID)
@@ -173,7 +173,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 			return
 		}
 
-		//4.3 存储本地 track 到房间
+		// 存储本地 track 到房间
 		room.Mu.Lock()
 		ut := room.Tracks[user.UID]
 		if ut == nil {
@@ -226,7 +226,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 		distributeTrackToAllSubscribers(room, user.UID, local)
 	})
 
-	// 5. 设置远端描述并创建 Answer
+	// 设置远端描述并创建 Answer
 	offer := webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
 		SDP:  sdp,
