@@ -51,5 +51,21 @@ func (RoomApi) JoinRoom(c *gin.Context) {
 	room.Users[user.UID] = user
 	room.Mu.Unlock()
 
+	readyMsg := map[string]any{
+		"event": "server_ready",
+		"data": map[string]string{
+			"uid": user.UID,
+		},
+	}
+
+	if err := user.WS.WriteJSON(readyMsg); err != nil {
+		logger.Log.Error("发送 server_ready 信令失败", zap.Error(err))
+		// 发送失败后，应该立即关闭连接并清理用户
+		conn.Close()
+		return
+	}
+
+	logger.Log.Info("成功向新用户发送 server_ready 信令", zap.String("uid", user.UID))
+
 	go ws.HandleWS(room, user)
 }

@@ -3,12 +3,14 @@ package ws
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"sfu/internal/logger"
 
 	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
+	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v4"
 )
@@ -49,7 +51,7 @@ type DownOfferPayload struct {
 // 处理用户的 WebSocket 消息
 func HandleWS(room *Room, user *User) {
 	defer func() {
-		cleanupUser(room, user)
+		cleanupUserV2(room, user)
 	}()
 
 	// 读取循环
@@ -155,9 +157,10 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		//接收 RTCP (重要：用于控制和质量反馈)
 		go func() {
-			b := make([]byte, 1500)
+			// b := make([]byte, 1500)
 			for {
-				if _, _, err = receiver.Read(b); err != nil {
+				if _, _, err = receiver.ReadRTCP(); err != nil {
+					fmt.Println("读取RTCP包失败", err)
 					return
 				}
 				// TODO 完整的 SFU 应该在这里解析 RTCP 包，如 PLI/NACK，并响应或转发。
@@ -223,7 +226,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 		}()
 
 		//将新轨道分发给所有订阅者
-		distributeTrackToAllSubscribers(room, user.UID, local)
+		distributeTrackToAllSubscribersV2(room, user.UID, local)
 	})
 
 	// 设置远端描述并创建 Answer
@@ -263,6 +266,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 }
 
 // 为每个订阅者添加本地 track (local -> downPC)
+// Deprecated: 使用 distributeTrackToAllSubscribersV2,该方法会导致前端使用getDisplayMedia获取到的轨道无法播放问题
 func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webrtc.TrackLocal) {
 	room.Mu.RLock()
 	users := make([]*User, 0, len(room.Users))
@@ -292,6 +296,91 @@ func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webr
 		}
 
 		// 添加 Track 成功，触发重新协商
+		go createAndSendDownOffer(u, publisherUID)
+	}
+}
+
+// distributeTrackToAllSubscribersV2 为每个订阅者添加本地 track (local -> downPC)
+// 设置 RTCP 监听，以接收和转发 PLI (关键帧请求)。
+func distributeTrackToAllSubscribersV2(room *Room, publisherUID string, track webrtc.TrackLocal) {
+	room.Mu.RLock()
+	// 创建用户列表的副本，以便在遍历时可以安全地释放锁
+	users := make([]*User, 0, len(room.Users))
+	for _, u := range room.Users {
+		users = append(users, u)
+	}
+	room.Mu.RUnlock()
+
+	for _, u := range users {
+		// 排除发布者自己
+		if u.UID == publisherUID {
+			continue
+		}
+
+		// 确保订阅者 (Subscriber) 的 DownPC 存在并初始化
+		if err := ensureDownPC(u); err != nil {
+			logger.Log.Sugar().Errorf("确保DownPC失败,subscriber %s: %v", u.UID, err)
+			continue
+		}
+
+		u.mu.Lock()
+		pc := u.DownPC
+		u.mu.Unlock()
+
+		var sender *webrtc.RTPSender
+		var err error
+
+		// AddTrack 返回 RTPSender，需要它来监听 RTCP (PLI)
+		if sender, err = pc.AddTrack(track); err != nil {
+			// 如果轨道已经添加过 (例如，由于并发调用)，则忽略错误并继续。
+			logger.Log.Sugar().Errorf("添加track到DownPC失败,subscriber %s: %v", u.UID, err)
+			continue
+		}
+		logger.Log.Sugar().Infof("成功向订阅者 %s 的 DownPC 添加轨道 (来自 %s)", u.UID, publisherUID)
+
+		// 监听 Sender 返回的 RTCP (即订阅者发来的 PLI 请求)
+		go func(sender *webrtc.RTPSender, publisherUID string, subscriberUID string) {
+			for {
+				pkts, _, readErr := sender.ReadRTCP()
+				if readErr != nil {
+					// DownPC 关闭或错误时退出
+					return
+				}
+
+				// 检查是否是 PLI 请求
+				for _, p := range pkts {
+					if _, ok := p.(*rtcp.PictureLossIndication); ok {
+						logger.Log.Sugar().Infof("收到订阅者 %s 的 PLI 请求 (发布者: %s)。准备转发...", subscriberUID, publisherUID)
+
+						// 转发 PLI 给发布者 UpPC
+						room.Mu.RLock()
+						pubUser := room.Users[publisherUID]
+						room.Mu.RUnlock()
+
+						if pubUser != nil && pubUser.UpPC != nil {
+							// 遍历发布者 UpPC 的所有接收器 (Receiver)
+							for _, receiver := range pubUser.UpPC.GetReceivers() {
+								track := receiver.Track()
+								// 找到正确的 Receiver 来发送 PLI (通常通过 SSRC 匹配)
+								if track != nil {
+									// 通过 WriteRTCP 发送 PLI 请求给发布者客户端
+									_ = pubUser.UpPC.WriteRTCP([]rtcp.Packet{
+										&rtcp.PictureLossIndication{
+											MediaSSRC: uint32(track.SSRC()),
+										},
+									})
+									logger.Log.Sugar().Infof("PLI 已转发给发布者 %s", publisherUID)
+									break // 找到并发送后退出 receiver 循环
+								}
+							}
+						}
+					}
+				}
+			}
+		}(sender, publisherUID, u.UID)
+
+		// 触发重新协商 (发送 Down Offer)
+		// AddTrack 成功后，必须发送 Offer 通知客户端新轨道的到来
 		go createAndSendDownOffer(u, publisherUID)
 	}
 }
