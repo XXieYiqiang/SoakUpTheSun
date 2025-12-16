@@ -13,7 +13,7 @@ import (
 )
 
 type CloseRoomReq struct {
-	RoomID string `json:"roomId"`
+	RoomID string `json:"roomID"`
 }
 
 // CloseRoom 关闭房间

@@ -1,7 +1,7 @@
 system:
-  port: 8080
+  port: 10014
   env: debug
-  migrate: 1
+  migrate: true
 
 
 mysql:
