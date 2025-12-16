@@ -2,11 +2,12 @@ package httpx
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/bytedance/sonic"
 )
 
 type HTTPClient struct {
@@ -51,10 +52,10 @@ func Get[T any](urlStr string, params map[string]string) (*Result[T], error) {
 }
 
 // PostBody 发送 Content-Type 为 application/json 的 POST 请求
-// T: 期望的响应体类型
+// T: 响应体类型
 // bodyData: 将会被 JSON 序列化的任意结构体或 map
 func PostBody[T any](urlStr string, bodyData any) (*Result[T], error) {
-	bodyBytes, err := json.Marshal(bodyData)
+	bodyBytes, err := sonic.Marshal(bodyData)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func PostBody[T any](urlStr string, bodyData any) (*Result[T], error) {
 }
 
 // PostForm 发送 application/x-www-form-urlencoded 的 POST 请求
-// T: 期望的响应体类型
+// T: 响应体类型
 func PostForm[T any](urlStr string, formData map[string]string) (*Result[T], error) {
 	data := url.Values{}
 	for key, value := range formData {
@@ -96,7 +97,7 @@ func PostForm[T any](urlStr string, formData map[string]string) (*Result[T], err
 }
 
 // doRequest 是核心执行方法，处理请求和响应体的反序列化
-// T 是期望的响应体类型
+// T 响应体类型
 func doRequest[T any](req *http.Request) (*Result[T], error) {
 	c := NewClient()
 	resp, err := c.Client.Do(req)
@@ -111,12 +112,11 @@ func doRequest[T any](req *http.Request) (*Result[T], error) {
 		return nil, err
 	}
 
-	// 2. 尝试将 JSON 反序列化到 T
 	var data T
-	// 我们只在状态码是 2xx 的时候尝试解析 JSON
+	// 只在状态码是 2xx 的时候尝试解析 JSON
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		// 注意: T 必须是可导出的结构体指针或支持 JSON 解析的类型
-		if err := json.Unmarshal(body, &data); err != nil {
+		if err := sonic.Unmarshal(body, &data); err != nil {
 			// 如果解析失败，可能是非 JSON 响应或 T 类型不匹配，返回原始 Body 但解析失败的错误
 			return &Result[T]{
 				StatusCode: resp.StatusCode,
