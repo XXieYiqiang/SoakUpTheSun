@@ -13,6 +13,20 @@ import org.springframework.web.multipart.MultipartFile;
 public interface PictureService extends IService<PictureDO> {
 
     /**
+     * 获取图片分析结果
+     * @param pictureId 图片id
+     * @return 返回图片分析的结果
+     */
+    String getPictureAnalysisResponse(Long pictureId);
+
+    /**
+     * 图片分析
+     * @param multipartFile 图片
+     * @return 返回图片信息
+     */
+    UploadPictureRespDTO uploadPictureAnalysis(MultipartFile multipartFile);
+
+    /**
      * 上传图片
      * @param multipartFile 图片
      * @return 上传图片信息

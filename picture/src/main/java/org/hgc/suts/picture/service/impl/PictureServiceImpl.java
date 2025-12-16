@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.hgc.suts.picture.common.biz.user.UserContext;
 import org.hgc.suts.picture.common.biz.user.UserInfoDTO;
+import org.hgc.suts.picture.common.constant.RedisCacheConstant;
 import org.hgc.suts.picture.common.exception.ClientException;
 import org.hgc.suts.picture.common.tensentCos.FilePictureUpload;
 import org.hgc.suts.picture.dao.entity.PictureDO;
@@ -17,8 +18,11 @@ import org.hgc.suts.picture.dao.entity.PictureSpaceDO;
 import org.hgc.suts.picture.dao.mapper.PictureSpaceMapper;
 import org.hgc.suts.picture.dto.resp.UploadPictureCosRespDTO;
 import org.hgc.suts.picture.dto.resp.UploadPictureRespDTO;
+import org.hgc.suts.picture.mq.event.UploadPictureAnalysisEvent;
+import org.hgc.suts.picture.mq.producer.PictureAnalysisSendProducer;
 import org.hgc.suts.picture.service.PictureService;
 import org.hgc.suts.picture.dao.mapper.PictureMapper;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +41,38 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, PictureDO> im
     private final PictureSpaceMapper pictureSpaceMapper;
     private final FilePictureUpload filePictureUpload;
     private final TransactionTemplate transactionTemplate;
+    private final PictureAnalysisSendProducer pictureAnalysisSendProducer;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    @Override
+    public String getPictureAnalysisResponse(Long pictureId) {
+        LambdaQueryWrapper<PictureDO> queryWrapper = Wrappers.lambdaQuery(PictureDO.class)
+                .eq(PictureDO::getUserId, UserContext.getUserId())
+                .eq(PictureDO::getId, pictureId);
+        PictureDO pictureDO = this.getOne(queryWrapper);
+        if (pictureDO == null) {
+            throw new ClientException("图片非该用户上传");
+        }
+        String pictureAnalysisKey = String.format(RedisCacheConstant.PICTURE_ANALYSIS_RESPONSE_KEY, pictureId);
+        return stringRedisTemplate.opsForValue().get(pictureAnalysisKey);
+    }
+
+    @Override
+    public UploadPictureRespDTO uploadPictureAnalysis(MultipartFile multipartFile) {
+
+        if (multipartFile == null) {
+            throw new ClientException("图片是空的，无法分析");
+        }
+
+        UploadPictureRespDTO uploadPictureRespDTO = this.uploadPicture(multipartFile);
+        UploadPictureAnalysisEvent uploadPictureAnalysisEvent = UploadPictureAnalysisEvent.builder()
+                .pictureId(uploadPictureRespDTO.getId())
+                .imageKey(uploadPictureRespDTO.getUrl())
+                .build();
+        pictureAnalysisSendProducer.sendMessage(uploadPictureAnalysisEvent);
+        return uploadPictureRespDTO;
+    }
+
 
     @Override
     public UploadPictureRespDTO uploadPicture(MultipartFile multipartFile) {
@@ -90,9 +126,6 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, PictureDO> im
         } else {
             picture.setName(DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss"));
         }
-
-
-
 
         // 6. 开启事务
         transactionTemplate.execute(status -> {
