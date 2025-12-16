@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.hgc.suts.picture.dao.mapper.PictureMapper">
+
+    <resultMap id="BaseResultMap" type="org.hgc.suts.picture.dao.entity.PictureDO">
+            <id property="id" column="id" />
+            <result property="url" column="url" />
+            <result property="thumbnailUrl" column="thumbnail_url" />
+            <result property="name" column="name" />
+            <result property="spaceId" column="space_id" />
+            <result property="tags" column="tags" />
+            <result property="picSize" column="pic_size" />
+            <result property="picWidth" column="pic_width" />
+            <result property="picHeight" column="pic_height" />
+            <result property="picScale" column="pic_scale" />
+            <result property="picFormat" column="pic_format" />
+            <result property="userId" column="user_id" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+            <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,url,thumbnail_url,name,introduction,tags,
+        pic_size,pic_width,pic_height,pic_scale,pic_format,
+        user_id,create_time,update_time,del_flag
+    </sql>
+</mapper>

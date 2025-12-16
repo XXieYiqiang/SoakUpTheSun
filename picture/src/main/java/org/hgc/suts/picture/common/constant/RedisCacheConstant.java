@@ -21,4 +21,8 @@ public class RedisCacheConstant {
     public static final String USER_LOGIN_KEY_USER_TO_TOKEN = "suts:login:UserToToken:";
     public static final String USER_LOGIN_KEY_TOKEN_TO_USER = "suts:login:TokenToUser:";
 
+    /**
+     * 图片分析的结果
+     */
+    public static final String PICTURE_ANALYSIS_RESPONSE_KEY = "suts:picture:analysis:%s";
 }

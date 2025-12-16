@@ -13,6 +13,10 @@ import org.hgc.suts.user.dto.resp.UserRespDTO;
 import org.hgc.suts.user.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 用户控制层
+ */
+
 @RestController
 @RequiredArgsConstructor
 public class UserController {
