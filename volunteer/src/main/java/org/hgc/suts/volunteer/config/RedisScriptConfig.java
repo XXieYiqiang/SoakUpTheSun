@@ -30,4 +30,15 @@ public class RedisScriptConfig {
         script.setResultType(Long.class);
         return script;
     }
+
+    /**
+     * 回滚奖品库存
+     */
+    @Bean
+    public DefaultRedisScript<Long> rollbackPrizesStock() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/rollback_prizes_stock.lua")));
+        script.setResultType(Long.class);
+        return script;
+    }
 }

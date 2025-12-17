@@ -3,14 +3,17 @@ package org.hgc.suts.volunteer.service.impl;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendResult;
+import org.hgc.suts.volunteer.common.biz.user.UserContext;
 import org.hgc.suts.volunteer.common.constant.RedisCacheConstant;
 import org.hgc.suts.volunteer.common.enums.VolunteerPrizesGrabStutsEnum;
 import org.hgc.suts.volunteer.common.exception.ClientException;
+import org.hgc.suts.volunteer.common.exception.RemoteException;
 import org.hgc.suts.volunteer.common.exception.ServiceException;
 import org.hgc.suts.volunteer.dao.entity.VolunteerPrizesGrabDO;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerPrizesMapper;
@@ -26,6 +29,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.Date;
 
 /**
@@ -41,7 +45,8 @@ public class VolunteerPrizesGrabServiceImpl extends ServiceImpl<VolunteerPrizesG
     private final VolunteerPrizesService volunteerPrizesService;
     // lua脚本，用于同步库存和限领
     private final DefaultRedisScript<Long> redeemVolunteerPrizesStockSynchronize;
-
+    // lua脚本，用于回滚库存
+    private final DefaultRedisScript<Long> rollbackPrizesStock;
     private final StringRedisTemplate stringRedisTemplate;
 
     private final VolunteerPrizesDBSyncProducer volunteerPrizesDBSyncProducer;
@@ -72,11 +77,27 @@ public class VolunteerPrizesGrabServiceImpl extends ServiceImpl<VolunteerPrizesG
         VolunteerPrizesGrabDBSyncEvent volunteerPrizesGrabDBSyncEvent = VolunteerPrizesGrabDBSyncEvent.builder()
                 .volunteerPrizesDBSyncDTO(volunteerPrizes)
                 .volunteerId(requestParam.getVolunteerId()).build();
-        SendResult sendResult = volunteerPrizesDBSyncProducer.sendMessage(volunteerPrizesGrabDBSyncEvent);
+        try {
+            // 生产者发送消息
+            SendResult sendResult = volunteerPrizesDBSyncProducer.sendMessage(volunteerPrizesGrabDBSyncEvent);
+            // 检查发送状态
+            if (sendResult == null || !StrUtil.equals(sendResult.getSendStatus().name(), "SEND_OK")) {
+                // 主动抛出异常，进入 catch 块执行回滚
+                throw new RemoteException("消息未正常发送，兑换失败");
+            }
 
-        // 打印错误发送的消息
-        if (ObjectUtil.notEqual(sendResult.getSendStatus().name(), "SEND_OK")) {
-            log.warn("发送奖品兑换消息失败，消息参数：{} " , JSON.toJSONString(volunteerPrizesGrabDBSyncEvent));
+        } catch (Exception e) {
+            log.warn("抢购成功但MQ发送失败，开始回滚。原因: {}", e.getMessage());
+            try {
+                // 执行库存回滚
+                stringRedisTemplate.execute(rollbackPrizesStock, Arrays.asList(prizesKey, volunteerPrizesGrabKey));
+                log.info("库存回滚成功。PrizesId: {}", requestParam.getPrizesId());
+            } catch (Exception rollbackEx) {
+                // 正常来说MQ和redis同时都挂了的概率太低了
+                log.warn("库存回滚失败，PrizesId: {},VolunteerId: {}", requestParam.getPrizesId(), requestParam.getVolunteerId());
+            }
+
+            throw new ClientException("网络繁忙，兑换奖品失败，请稍后重试");
         }
     }
 }
