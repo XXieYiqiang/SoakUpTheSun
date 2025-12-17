@@ -14,10 +14,4 @@ import java.util.List;
 */
 public interface VolunteerUserService extends IService<VolunteerUserDO> {
 
-    /**
-     * 匹配志愿者
-     * @param volunteerMatchReqDTO 匹配请求参数
-     * @return 返回示个志愿者
-     */
-    List<VolunteerMatchRespDTO> matchVolunteer(VolunteerMatchReqDTO volunteerMatchReqDTO);
 }

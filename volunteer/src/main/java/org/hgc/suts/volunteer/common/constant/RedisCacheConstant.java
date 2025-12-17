@@ -55,5 +55,20 @@ public class RedisCacheConstant {
      */
     public static final String VOLUNTEER_PRIZES_LIST = "suts:volunteer-prizes-list:%s";
 
+    /**
+     * 活跃志愿者匹配 GEO 池
+     */
+    public static final String VOLUNTEER_MATCH_ACTIVE_GEO_KEY = "suts:volunteer:match:active:geo";
+
+    /**
+     * 活跃志愿者画像信息key
+     */
+    public static final String VOLUNTEER_MATCH_ACTIVE_INFO_PREFIX_KEY = "suts:volunteer:match:active:info:";
+
+    /**
+     * 志愿者匹配冷却/频控前缀 key
+     */
+    public static final String VOLUNTEER_MATCH_COOLDOWN_PREFIX_KEY = "suts:volunteer:match:cooldown:";
+
 
 }
