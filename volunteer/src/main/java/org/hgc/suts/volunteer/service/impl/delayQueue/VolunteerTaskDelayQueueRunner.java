@@ -19,7 +19,7 @@ import static org.hgc.suts.volunteer.common.constant.RedisCacheConstant.TASK_SEN
  */
 @Service
 @RequiredArgsConstructor
-class RefreshCouponTaskDelayQueueRunner implements CommandLineRunner {
+class VolunteerTaskDelayQueueRunner implements CommandLineRunner {
 
     private final VolunteerTaskMapper volunteerTaskMapper;
     private final RedissonClient redissonClient;
