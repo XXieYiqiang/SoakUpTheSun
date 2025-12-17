@@ -101,6 +101,8 @@ public class ShortLinkHelpServiceImpl extends ServiceImpl<ShortLinkHelpMapper, S
                 EXPIRE_MINUTES,
                 TimeUnit.MINUTES
         );
+        // 删除空值，否则新建之后也会不存在。
+        stringRedisTemplate.delete(String.format(RedisCacheConstant.SHORT_LINK_GOTO_IS_NULL_KEY, fullShortUrl));
         // 加入布隆过滤器中
         shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
         return BeanUtil.toBean(shortLinkHelpDO,ShortLinkHelpRespDTO.class);
