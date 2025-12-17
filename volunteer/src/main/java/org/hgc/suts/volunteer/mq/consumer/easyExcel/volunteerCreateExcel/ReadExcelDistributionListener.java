@@ -47,8 +47,8 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
         Long volunteerTaskId = volunteerTaskDO.getId();
 
         // 获取当前进度，判断是否已经执行过。如果已执行，则跳过即可，防止执行到一半应用宕机
-        String TaskExecuteProgressKey = String.format(DistributionRedisConstant.VOLUNTEER_TASK_EXECUTE_PROGRESS_KEY, volunteerTaskId);
-        String progress = stringRedisTemplate.opsForValue().get(TaskExecuteProgressKey);
+        String taskExecuteProgressKey = String.format(DistributionRedisConstant.VOLUNTEER_TASK_EXECUTE_PROGRESS_KEY, volunteerTaskId);
+        String progress = stringRedisTemplate.opsForValue().get(taskExecuteProgressKey);
         if (StrUtil.isNotBlank(progress) && Integer.parseInt(progress) >= rowCount) {
             ++rowCount;
             return;
@@ -60,14 +60,18 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
 
         // 假如列表中存储了500个，就新增到数据库中
         if (rowCount%500==0){
-            batchSaveVolunteer();
+            batchSaveVolunteer(taskExecuteProgressKey);
         }
-        stringRedisTemplate.opsForValue().set(TaskExecuteProgressKey, String.valueOf(rowCount));
+        //逻辑前移
         rowCount++;
     }
 
     // 批量新增用户
-    private void batchSaveVolunteer() {
+    private void batchSaveVolunteer(String taskExecuteProgressKey) {
+        // 防止空跑
+        if (volunteerUserDOList.isEmpty()) {
+            return;
+        }
         try {
             // todo 可以把这些志愿者假如布隆过滤器中，后续的一些校验可以先通过布隆过滤器过滤
             volunteerUserMapper.insert(volunteerUserDOList,volunteerUserDOList.size());
@@ -80,6 +84,8 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
 
                 volunteerUserEsSyncProducer.sendMessage(volunteerUserEsSyncEvent);
             }
+            // 设置当前进度
+            stringRedisTemplate.opsForValue().set(taskExecuteProgressKey, String.valueOf(rowCount));
             // 清空userList
             volunteerUserDOList.clear();
         } catch (Exception ex) {
@@ -125,10 +131,10 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
 
                     volunteerUserEsSyncProducer.sendMessage(volunteerUserEsSyncEvent);
                 }
-
+                //设置当前进度
+                stringRedisTemplate.opsForValue().set(taskExecuteProgressKey, String.valueOf(rowCount));
                 // 删除原来的列表内容
                 volunteerUserDOList.clear();
-
                 // 错误降级后应当返回，否则无法正常同步redis.
                 return;
             }
@@ -138,7 +144,9 @@ public class ReadExcelDistributionListener extends AnalysisEventListener<Volunte
 
     @Override
     public void doAfterAllAnalysed(AnalysisContext analysisContext) {
-        batchSaveVolunteer();
+        Long volunteerTaskId = volunteerTaskDO.getId();
+        String taskExecuteProgressKey = String.format(DistributionRedisConstant.VOLUNTEER_TASK_EXECUTE_PROGRESS_KEY, volunteerTaskId);
+        batchSaveVolunteer(taskExecuteProgressKey);
     }
 }
 
