@@ -8,6 +8,7 @@ import org.hgc.suts.volunteer.dto.resp.VolunteerMatchRespDTO;
 import org.hgc.suts.volunteer.service.*;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -19,8 +20,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class VolunteerUserController {
 
-    private final VolunteerUserService volunteerUserService;
-
     private final VolunteerTaskService volunteerTaskService;
 
     private final VolunteerRatingService volunteerRatingService;
@@ -28,6 +27,8 @@ public class VolunteerUserController {
     private final VolunteerPrizesService volunteerPrizesService;
 
     private final VolunteerPrizesGrabService volunteerPrizesGrabService;
+
+    private final VolunteerMatchService volunteerMatchService;
 
     /**
      * 新增志愿者任务
@@ -39,12 +40,19 @@ public class VolunteerUserController {
     }
 
     /**
+     * 把志愿者加入活跃队列
+     */
+    @PostMapping("/api/volunteer/activateVolunteer")
+    public Result<Void> activateVolunteer(@RequestParam Long volunteerId) {
+        volunteerMatchService.activateVolunteer(volunteerId);
+        return Results.success();
+    }
+    /**
      * 匹配志愿者
      */
     @PostMapping("/api/volunteer/matchVolunteer")
-    public Result<List<VolunteerMatchRespDTO>> createVolunteerTask(@RequestBody VolunteerMatchReqDTO requestParam) {
-
-        return Results.success(volunteerUserService.matchVolunteer(requestParam));
+    public Result<List<Long>> matchVolunteer(@RequestBody VolunteerMatchReqDTO requestParam) {
+        return Results.success(volunteerMatchService.matchVolunteer(requestParam));
     }
 
     /**

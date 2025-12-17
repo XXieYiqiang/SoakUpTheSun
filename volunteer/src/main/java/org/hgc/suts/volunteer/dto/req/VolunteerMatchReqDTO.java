@@ -1,5 +1,6 @@
 package org.hgc.suts.volunteer.dto.req;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,15 +15,19 @@ public class VolunteerMatchReqDTO {
     /**
      * 性别权重
      */
-    double sexWeight;
+    @Schema(description = "性别权重 (默认0.5)", example = "0.5")
+    private Double sexWeight = 0.5;
+
 
     /**
      * 年龄权重
      */
-    double ageWeight;
+    @Schema(description = "年龄权重 (默认0.3)", example = "0.3")
+    private Double ageWeight = 0.3;
 
     /**
      * 位置权重
      */
-    double locationWeight;
+    @Schema(description = "位置权重 (默认0.01)", example = "0.01")
+    private Double locationWeight = 0.01;
 }
