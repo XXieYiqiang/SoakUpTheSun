@@ -25,7 +25,7 @@ func (r RoomApi) CloseRoom(c *gin.Context) {
 		return
 	}
 
-	room, err := gorm.G[model.Room](r.App.DB).Where("uid = ?", req.RoomID).First(c.Request.Context())
+	room, err := gorm.G[model.Room](r.db).Where("uid = ?", req.RoomID).First(c.Request.Context())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			res.Failed(c, "房间不存在")
@@ -39,7 +39,7 @@ func (r RoomApi) CloseRoom(c *gin.Context) {
 	// 数据库找得到房间，但是map中没有，说明房间已经关闭，删除map里的房间
 	wsRoom, ok := ws.GetRoom(room.UID)
 	if !ok {
-		if _, err = gorm.G[model.Room](r.App.DB).Updates(c.Request.Context(), model.Room{
+		if _, err = gorm.G[model.Room](r.db).Updates(c.Request.Context(), model.Room{
 			Status: model.RoomStatusClosed,
 		}); err != nil {
 			logger.Log.Error("关闭房间失败,更新房间状态失败", zap.Error(err))

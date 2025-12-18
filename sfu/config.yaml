@@ -13,6 +13,17 @@ mysql:
   max_idle_conns: 100
   max_open_conns: 1000
 
+redis:
+  addr: 127.0.0.1:6379
+  password: sjk12345
+  db: 0
+
+
+jwt:
+  expire: 604800 # 单位：秒
+  secret: sfu
+  issuer: sfu
+
 log:
   director: log
   retention_day: 7

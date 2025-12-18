@@ -27,8 +27,8 @@ func (r RoomApi) GetRoomInfo(c *gin.Context) {
 		return
 	}
 
-	var roomModel model.Room
-	if err := r.App.DB.Where("uid = ? AND status != ?", roomID, model.RoomStatusClosed).First(&roomModel).Error; err != nil {
+	roomModel, err := gorm.G[model.Room](r.db).Where("uid = ? AND status != ?", roomID, model.RoomStatusClosed).First(c.Request.Context())
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			res.Failed(c, "房间不存在")
 			return
@@ -45,7 +45,7 @@ func (r RoomApi) GetRoomInfo(c *gin.Context) {
 
 	room, ok := ws.GetRoom(roomID)
 	if !ok {
-		if err := r.App.DB.Model(&roomModel).Update("status", model.RoomStatusClosed).Error; err != nil {
+		if _, err = gorm.G[model.Room](r.db).Update(c.Request.Context(), "status", model.RoomStatusClosed); err != nil {
 			logger.Log.Error("更新房间状态失败", zap.Error(err))
 		}
 		res.Failed(c, "房间不存在")

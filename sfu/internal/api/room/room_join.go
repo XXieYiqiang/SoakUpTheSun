@@ -61,7 +61,7 @@ func (RoomApi) JoinRoom(c *gin.Context) {
 	if err := user.WS.WriteJSON(readyMsg); err != nil {
 		logger.Log.Error("发送 server_ready 信令失败", zap.Error(err))
 		// 发送失败后，应该立即关闭连接并清理用户
-		conn.Close()
+		_ = conn.Close()
 		return
 	}
 

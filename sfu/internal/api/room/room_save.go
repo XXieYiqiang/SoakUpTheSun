@@ -21,7 +21,7 @@ func (r RoomApi) SaveRoom(c *gin.Context) {
 
 	// TODO 获取用户信息创建房间
 	// 创建房间
-	if err := r.App.DB.Create(&model.Room{
+	if err := r.db.Create(&model.Room{
 		Name:        "张三的房间",
 		PatientID:   114514,
 		PatientName: "张三",
@@ -34,4 +34,24 @@ func (r RoomApi) SaveRoom(c *gin.Context) {
 	}
 
 	res.OkWithData(c, room.ID)
+}
+
+type RoomPreload struct {
+	RoomID string `json:"roomID"`
+	UserID int64  `json:"userID"`
+	Role   string `json:"role"`
+}
+
+// 生成房间令牌
+func (r RoomApi) generateRoomToken(roomUID string) (string, error) {
+	// 生成房间令牌
+	token, err := r.jwt.GenerateToken(RoomPreload{
+		RoomID: roomUID,
+		UserID: 114514,
+		Role:   "patient",
+	})
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
