@@ -28,6 +28,7 @@ func (r RoomApi) SaveRoom(c *gin.Context) {
 		UID:         room.ID,
 	}).Error; err != nil {
 		res.Failed(c, "创建房间失败")
+		ws.DeleteRoom(room.ID)
 		logger.Log.Error("创建房间失败", zap.Error(err))
 		return
 	}

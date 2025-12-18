@@ -74,6 +74,6 @@ func GetRoom(id string) (*Room, bool) {
 
 func DeleteRoom(id string) {
 	RoomsMu.Lock()
-	defer RoomsMu.Unlock()
 	delete(Rooms, id)
+	RoomsMu.Unlock()
 }

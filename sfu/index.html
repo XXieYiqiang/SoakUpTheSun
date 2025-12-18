@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC SFU 视频会议测试</title>
     <style>
-        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; }
-        #controls { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; width: 80%; max-width: 600px; }
-        #videos { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-        .video-container { text-align: center; }
-        video { width: 300px; height: 225px; background: #000; border: 1px solid #333; }
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f4f4f4; }
+        #controls { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; width: 90%; max-width: 700px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; }
+        #videos { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; width: 90%; max-width: 1200px; }
+        .video-container { text-align: center; background-color: #333; padding: 5px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        video { width: 320px; height: 240px; background: #000; border: 1px solid #000; border-radius: 4px; }
+        #status { font-weight: bold; color: #007bff; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -21,6 +22,7 @@
         <input type="text" id="roomIdInput" value="test-room-1" />
         <button onclick="joinRoom()">加入房间 / 重新连接</button>
         <p id="status">状态: 未连接</p>
+        <p>您的服务器分配 UID: <span id="localUidDisplay">---</span></p>
     </div>
 
     <div id="videos">
@@ -28,12 +30,12 @@
             <h2>本地视频 (Local)</h2>
             <video id="localVideo" autoplay muted playsinline></video>
         </div>
-        </div>
+    </div>
 
     <script>
         // ------------------- 配置 -------------------
-        // !!! 替换为您的 SFU 服务器地址 !!!
-        const WS_URL = 'ws://127.0.0.1:8080/room?roomID=';
+        // !!! 替换为您的 SFU 服务器地址 (使用 wss:// 或 ws://) !!!
+        const WS_URL = 'ws://127.0.0.1:10014/room/join?roomID=';
         const CONFIG = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -45,10 +47,11 @@
         let localStream;
         let upPC; // 上行 PeerConnection (Publisher)
         let downPC; // 下行 PeerConnection (Subscriber)
-        let localUID; // 客户端生成的唯一 ID
+        let localUID = null; // **服务器分配的** 客户端唯一 ID
         let remoteVideoElements = {}; // 存储远端视频元素的映射
 
         const statusElement = document.getElementById('status');
+        const localUidDisplay = document.getElementById('localUidDisplay');
 
         function updateStatus(message) {
             statusElement.textContent = '状态: ' + message;
@@ -61,18 +64,17 @@
             if (ws) {
                 ws.close();
             }
-            // 使用客户端生成的唯一 ID 作为标识
-            localUID = Math.random().toString(36).substring(2, 9);
+            
+            // 客户端不自行生成 UID，等待服务器分配
+            localUID = null; 
+            localUidDisplay.textContent = '---';
+
             const url = WS_URL + roomID;
             ws = new WebSocket(url);
 
             ws.onopen = async () => {
-                updateStatus('WebSocket 连接成功。正在获取媒体并发送 Offer...');
-                await startLocalMedia();
-                await createUpPC(localStream);
-                
-                // 确保 DownPC 存在 (用于接收来自其他发布者的轨道)
-                await ensureDownPC();
+                // 等待服务器发送 server_ready 消息以获取 UID
+                updateStatus('WebSocket 连接成功。等待服务器分配 UID...');
             };
 
             ws.onmessage = async (event) => {
@@ -80,14 +82,29 @@
                 const { event: signalEvent, data } = signal;
 
                 switch (signalEvent) {
+                    case 'server_ready':
+                        // 服务器分配的 UID
+                        localUID = data.uid;
+                        localUidDisplay.textContent = localUID;
+                        updateStatus(`服务器连接就绪，UID: ${localUID}。正在获取媒体并发送 Offer...`);
+                        
+                        // 收到 UID 后，开始媒体和 WebRTC 协商
+                        try {
+                            await startLocalMedia();
+                            await createUpPC(localStream);
+                            await ensureDownPC(); // 确保 DownPC 存在以接收所有订阅
+                        } catch (e) {
+                            console.error("初始化失败:", e);
+                            updateStatus("初始化失败，请检查媒体权限或控制台错误");
+                        }
+                        break;
+                        
                     case 'up_candidate':
-                        // 服务器给客户端的上行 ICE 候选
                         if (upPC && data.candidate) {
                             upPC.addIceCandidate(data.candidate).catch(e => console.error("Error adding up_candidate:", e));
                         }
                         break;
                     case 'up_answer':
-                        // 服务器给客户端的上行 Answer
                         if (upPC && data.sdp) {
                             await upPC.setRemoteDescription({ type: 'answer', sdp: data.sdp });
                             updateStatus('已完成上行协商 (Publisher)。');
@@ -96,15 +113,31 @@
                     case 'down_offer':
                         // 服务器给客户端的下行 Offer (包含新轨道的通知)
                         if (downPC && data.sdp) {
-                            await handleDownOffer(data.sdp, data.from);
+                            // SFU 通常在 DownPC 上聚合所有发布者的轨道
+                            await handleDownOffer(data.sdp); 
                         }
                         break;
                     case 'down_candidate':
-                        // 服务器给客户端的下行 ICE 候选
                         if (downPC && data.candidate) {
                             downPC.addIceCandidate(data.candidate).catch(e => console.error("Error adding down_candidate:", e));
                         }
                         break;
+                        
+                    case 'user_left':
+                        const leavingUID = data.uid;
+                        const videoElement = remoteVideoElements[leavingUID];
+                        if (videoElement) {
+                            videoElement.remove();
+                            delete remoteVideoElements[leavingUID];
+                            updateStatus(`用户 ${leavingUID} 已离开房间。`);
+                        }
+                        break;
+                        
+                    case 'user_joined':
+                        updateStatus(`新用户 ${data.uid} 加入房间。`);
+                        // 实际媒体流会在 down_offer 后开始接收
+                        break;
+
                     default:
                         console.warn('Unknown signal event:', signalEvent, data);
                 }
@@ -125,7 +158,7 @@
 
         async function startLocalMedia() {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                 document.getElementById('localVideo').srcObject = localStream;
             } catch (error) {
                 updateStatus('媒体权限被拒绝或设备不可用');
@@ -159,7 +192,7 @@
             
             // 4. 发送 Offer 给服务器 (事件: up_offer)
             sendSignal('up_offer', { 
-                uid: localUID, 
+                uid: localUID, // 使用服务器分配的 UID
                 sdp: upPC.localDescription.sdp 
             });
             updateStatus('已发送上行 Offer...');
@@ -169,7 +202,6 @@
          * 确保 DownPC 存在 (用于接收 SFU 转发的媒体)
          */
         async function ensureDownPC() {
-             // 检查是否已创建，由于 SFU 模式下 DownPC 承载所有订阅，所以只需要一个。
             if (downPC) {
                 return;
             }
@@ -179,48 +211,58 @@
             // 1. 监听 ICE 候选，并发送给服务器 (事件: down_candidate)
             downPC.onicecandidate = (event) => {
                 if (event.candidate) {
-                    // 在 SFU 模式下，down_candidate 不需要 from 字段，因为它是针对整个 DownPC
                     sendSignal('down_candidate', { candidate: event.candidate.toJSON() });
                 }
             };
 
             // 2. 监听远端轨道
             downPC.ontrack = (event) => {
-                // SFU 模式下，ontrack 会触发多次，每个远端 Track 都会触发一次
                 const track = event.track;
                 const stream = event.streams[0];
-                const publisherUID = track.id; // 在 SFU 示例中，track.id 被设置为发布者的 UID
+                
+                // ⚠️ 假设 SFU 通过某种方式（例如 SDP 或 stream.id）将发布者 UID 与轨道关联
+                // 在简单的 SFU 实现中，有时会将发布者的 UID 嵌入到 stream.id 中。
+                // 推荐的做法是 SFU 发送包含元数据的信令。这里暂用 stream.id 作为 UID。
+                const publisherUID = stream.id || track.id; 
 
-                // 检查是否已存在该发布者的视频元素
-                if (remoteVideoElements[publisherUID]) {
-                    // 轨道可能被更新，但通常我们只需要 stream.id 来创建 Video 元素
-                    return; 
+                if (!publisherUID || publisherUID === localUID) {
+                    console.warn("ontrack: 无法识别发布者 UID 或为本地流");
+                    return;
                 }
 
-                updateStatus(`收到来自 ${publisherUID} 的媒体轨道`);
-                
-                // 动态创建或更新远端视频元素
-                const videoDiv = document.createElement('div');
-                videoDiv.className = 'video-container';
-                videoDiv.id = `video-${publisherUID}`;
-                videoDiv.innerHTML = `<h2>远端视频 (${publisherUID})</h2>`;
-                
-                const video = document.createElement('video');
-                video.autoplay = true;
-                video.playsInline = true;
-                video.srcObject = stream;
-                
-                videoDiv.appendChild(video);
-                document.getElementById('videos').appendChild(videoDiv);
-                
-                remoteVideoElements[publisherUID] = videoDiv;
-                
-                // 监听 stream 移除事件 (可选：如果 SFU 发送 stream 移除通知)
+                // 查找或创建视频元素
+                let videoDiv = remoteVideoElements[publisherUID];
+                if (!videoDiv) {
+                    updateStatus(`收到来自 ${publisherUID} 的媒体轨道`);
+                    
+                    // 动态创建远端视频元素
+                    videoDiv = document.createElement('div');
+                    videoDiv.className = 'video-container';
+                    videoDiv.id = `video-${publisherUID}`;
+                    videoDiv.innerHTML = `<h2>远端视频 (${publisherUID})</h2>`;
+                    
+                    const video = document.createElement('video');
+                    video.autoplay = true;
+                    video.playsInline = true;
+                    video.srcObject = stream;
+                    
+                    videoDiv.appendChild(video);
+                    document.getElementById('videos').appendChild(videoDiv);
+                    
+                    remoteVideoElements[publisherUID] = videoDiv;
+                }
+
+                // 监听 stream 移除事件
                 stream.onremovetrack = () => {
                     if (stream.getTracks().length === 0) {
-                        videoDiv.remove();
-                        delete remoteVideoElements[publisherUID];
-                        updateStatus(`远端 ${publisherUID} 的流已移除`);
+                        // 在 SFU 聚合模式下，通常只有整个 DownPC 关闭时才会触发，
+                        // 但这是一个标准的清理机制。
+                        const elementToRemove = remoteVideoElements[publisherUID];
+                        if(elementToRemove) {
+                            elementToRemove.remove();
+                            delete remoteVideoElements[publisherUID];
+                            updateStatus(`远端 ${publisherUID} 的流已移除`);
+                        }
                     }
                 };
             };
@@ -229,20 +271,18 @@
         /**
          * 处理 SFU 发来的 Down Offer
          * @param {string} sdp 
-         * @param {string} publisherUID 
          */
-        async function handleDownOffer(sdp, publisherUID) {
-            updateStatus(`收到来自 SFU 的 Down Offer (包含 ${publisherUID} 的轨道)`);
+        async function handleDownOffer(sdp) {
+            updateStatus(`收到来自 SFU 的 Down Offer...`);
             
             await downPC.setRemoteDescription({ type: 'offer', sdp });
             const answer = await downPC.createAnswer();
             await downPC.setLocalDescription(answer);
 
             // 发送 Answer 给服务器 (事件: down_answer)
-            // SFU 的 down_answer 载荷需要包含 "from" 字段来指明对应的发布者
             sendSignal('down_answer', {
                 sdp: downPC.localDescription.sdp,
-                from: publisherUID // 包含 from 字段，尽管在 DownPC 承载所有轨道时非必需，但SFU要求时应发送
+                // 不需要 from 字段，因为它是针对整个 DownPC
             });
             updateStatus('已发送 Down Answer...');
         }
@@ -253,6 +293,8 @@
         function joinRoom() {
             const roomID = document.getElementById('roomIdInput').value.trim();
             if (roomID) {
+                // 清理旧连接，防止重复创建
+                cleanup(); 
                 setupWebSocket(roomID);
             } else {
                 alert('请输入房间号！');
@@ -269,13 +311,14 @@
         }
 
         function cleanup() {
-            // 清理本地媒体
+            // 1. 清理本地媒体
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
                 document.getElementById('localVideo').srcObject = null;
+                localStream = null;
             }
             
-            // 关闭 PC
+            // 2. 关闭 PC
             if (upPC) {
                 upPC.close();
                 upPC = null;
@@ -285,12 +328,24 @@
                 downPC = null;
             }
             
-            // 移除远端视频
+            // 3. 关闭 WebSocket
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            
+            // 4. 移除远端视频
             Object.values(remoteVideoElements).forEach(el => el.remove());
             remoteVideoElements = {};
+            
+            // 5. 重置状态
+            localUID = null;
+            localUidDisplay.textContent = '---';
+            updateStatus('已清理并断开连接');
         }
 
-        // 页面加载时清理一次
+        // 页面加载时清理一次（防止浏览器缓存旧状态）
+        cleanup();
         window.addEventListener('beforeunload', cleanup);
     </script>
 

@@ -1,10 +1,15 @@
 package config
 
 import (
+
+	// _ "embed"
 	"log"
 
 	"github.com/spf13/viper"
 )
+
+// //go:embed config.yaml
+// var configFile []byte
 
 type Config struct {
 	Log    LogConfig    `mapstructure:"log" json:"log" yaml:"log"`
@@ -26,3 +31,21 @@ func InitConfig() *Config {
 	}
 	return conf
 }
+
+// InitConfigByEmbed 初始化配置文件（从 embed 读取默认配置）
+// func InitConfigByEmbed() *Config {
+// 	var conf Config
+
+// 	v := viper.New()
+// 	v.SetConfigType("yaml")
+
+// 	if err := v.ReadConfig(bytes.NewBuffer(configFile)); err != nil {
+// 		log.Fatalf("read embedded config failed: %v", err)
+// 	}
+
+// 	if err := v.Unmarshal(&conf); err != nil {
+// 		log.Fatalf("unmarshal config failed: %v", err)
+// 	}
+
+// 	return &conf
+// }
