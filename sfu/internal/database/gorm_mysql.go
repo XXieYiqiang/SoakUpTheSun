@@ -39,7 +39,10 @@ func InitMysql(conf *config.Config) *gorm.DB {
 }
 
 func migrateTable(db *gorm.DB) {
-	err := db.AutoMigrate(&model.Room{})
+	err := db.AutoMigrate(
+		&model.Room{},
+		&model.RoomMember{},
+	)
 	if err != nil {
 		log.Fatalf("migrate table failed: %v", err)
 	}
