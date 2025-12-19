@@ -1,0 +1,50 @@
+{
+  "name": "gim-chat",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "codemirror": "^5.64.0",
+    "core-js": "^3.8.3",
+    "easymde": "^2.20.0",
+    "element-ui": "^2.15.14",
+    "highlight.js": "^11.11.1",
+    "install": "^0.13.0",
+    "js-base64": "^3.7.2",
+    "js-cookie": "^3.0.5",
+    "lemon-imui": "^1.8.0",
+    "marked": "^16.1.1",
+    "mavon-editor": "^2.10.1",
+    "moment": "^2.30.1",
+    "replicate": "^1.4.0",
+    "spark-md5": "^3.0.2",
+    "video.js": "^8.23.4",
+    "vue": "^2.6.14",
+    "vue-codemirror": "^4.0.6",
+    "vue-router": "^3.5.1",
+    "vue-simple-uploader": "^0.7.6",
+    "vue-video-player": "^5.0.0",
+    "vuex": "^3.6.2"
+  },
+  "devDependencies": {
+    "@gradio/client": "^2.0.0",
+    "@vue/cli-plugin-babel": "~5.0.0",
+    "@vue/cli-plugin-router": "~5.0.0",
+    "@vue/cli-plugin-vuex": "~5.0.0",
+    "@vue/cli-service": "~5.0.0",
+    "less": "^4.0.0",
+    "less-loader": "^8.0.0",
+    "stylus": "^0.64.0",
+    "stylus-loader": "^8.1.2",
+    "vue-template-compiler": "^2.6.14"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}

@@ -1,0 +1,92 @@
+/*
+  Name:       Tomorrow Night
+  Author:     小鲤鱼听听
+*/
+
+.cm-s-tomorrow-night.CodeMirror {
+	background: #1d1f21;
+	color: #c5c8c6;
+}
+.cm-s-tomorrow-night div.CodeMirror-selected {
+	background: #2d2d2d;
+}
+.cm-s-tomorrow-night .CodeMirror-line::selection,
+.cm-s-tomorrow-night .CodeMirror-line > span::selection,
+.cm-s-tomorrow-night .CodeMirror-line > span > span::selection {
+	background: rgba(45, 45, 45, 0.99);
+}
+.cm-s-tomorrow-night .CodeMirror-line::-moz-selection,
+.cm-s-tomorrow-night .CodeMirror-line > span::-moz-selection,
+.cm-s-tomorrow-night .CodeMirror-line > span > span::-moz-selection {
+	background: rgba(45, 45, 45, 0.99);
+}
+.cm-s-tomorrow-night .CodeMirror-gutters {
+	background: #1d1f21;
+	border-right: 0px;
+}
+.cm-s-tomorrow-night .CodeMirror-guttermarker {
+	color: #cc6666;
+}
+.cm-s-tomorrow-night .CodeMirror-guttermarker-subtle {
+	color: #777;
+}
+.cm-s-tomorrow-night .CodeMirror-linenumber {
+	color: #515151;
+}
+.cm-s-tomorrow-night .CodeMirror-cursor {
+	border-left: 1px solid #6a6a6a;
+}
+
+.cm-s-tomorrow-night span.cm-comment {
+	color: #969896;
+}
+.cm-s-tomorrow-night span.cm-atom {
+	color: #a16a94;
+}
+.cm-s-tomorrow-night span.cm-number {
+	color: #de935f;
+}
+
+.cm-s-tomorrow-night span.cm-property {
+	color: #81a2be;
+}
+.cm-s-tomorrow-night span.cm-attribute {
+	color: #99cc99;
+}
+.cm-s-tomorrow-night span.cm-keyword {
+	color: #b294bb;
+}
+.cm-s-tomorrow-night span.cm-string {
+	color: #ffcc66;
+}
+
+.cm-s-tomorrow-night span.cm-variable {
+	color: #99cc99;
+}
+.cm-s-tomorrow-night span.cm-variable-2 {
+	color: #3c8ddf;
+}
+.cm-s-tomorrow-night span.cm-def {
+	color: #f99157;
+}
+.cm-s-tomorrow-night span.cm-bracket {
+	color: #cccccc;
+}
+.cm-s-tomorrow-night span.cm-tag {
+	color: #cc6666;
+}
+.cm-s-tomorrow-night span.cm-link {
+	color: #a16a94;
+}
+.cm-s-tomorrow-night span.cm-error {
+	background: #cc6666;
+	color: #6a6a6a;
+}
+
+.cm-s-tomorrow-night .CodeMirror-activeline-background {
+	background: #343600;
+}
+.cm-s-tomorrow-night .CodeMirror-matchingbracket {
+	text-decoration: underline;
+	color: white !important;
+}
