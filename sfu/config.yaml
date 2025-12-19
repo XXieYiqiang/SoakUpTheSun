@@ -4,27 +4,18 @@ system:
   migrate: true
 
 
-# mysql:
-#   host: 127.0.0.1
-#   port: 3306
-#   username: root
-#   password: sjk12345
-#   database: sfu
-#   max_idle_conns: 100
-#   max_open_conns: 1000
-
 mysql:
-  host: 47.120.60.61
+  host: 127.0.0.1
   port: 3306
-  username: gimchat
-  password: LMLlml062424
-  database: g-im-chat
+  username: 
+  password: 
+  database: 
   max_idle_conns: 100
-  max_open_conns: 1000  
+  max_open_conns: 1000
 
 redis:
   addr: 127.0.0.1:6379
-  password: sjk12345
+  password:
   db: 0
 
 

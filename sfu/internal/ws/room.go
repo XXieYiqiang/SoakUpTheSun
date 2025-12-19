@@ -34,10 +34,9 @@ type Room struct {
 type User struct {
 	UID              string
 	WS               *websocket.Conn
-	UpPC             *webrtc.PeerConnection // 上行 PC (Publisher)
-	DownPC           *webrtc.PeerConnection // 下行 PC (Subscriber)
-	Role             UserRole               // 用户角色
-	closed           bool
+	UpPC             *webrtc.PeerConnection    // 上行 PC (Publisher)
+	DownPC           *webrtc.PeerConnection    // 下行 PC (Subscriber)
+	Role             UserRole                  // 用户角色
 	mu               sync.Mutex                // 保护 UpPC, DownPC, closed
 	wsMu             sync.Mutex                // 保护 WS 写入操作
 	UpCandidateQueue []webrtc.ICECandidateInit // 新增：用于缓冲在上行 Offer 之前到达的 ICE Candidate

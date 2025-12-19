@@ -51,7 +51,7 @@ type DownOfferPayload struct {
 // 处理用户的 WebSocket 消息
 func HandleWS(room *Room, user *User) {
 	defer func() {
-		cleanupUserV2(room, user)
+		cleanupUser(room, user)
 	}()
 
 	// 读取循环
@@ -150,30 +150,16 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 			return
 		}
 
-		/**
-		 * @author lml
-		 *  ✅ 统一使用带锁的发送函数
-		 */
+		// @author lml
+		// 统一使用带锁的发送函数
 		sendToWS(user, user.WS, "up_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
 	})
 
 	// 4. 设置媒体轨道回调
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 
-		//接收 RTCP (重要：用于控制和质量反馈)
-		// go func() {
-		// 	b := make([]byte, 1500)
-		// 	for {
-		// 		if _, _, err = receiver.Read(b); err != nil {
-		// 			return
-		// 		}
-		// 		// TODO 完整的 SFU 应该在这里解析 RTCP 包，如 PLI/NACK，并响应或转发。
-		// 	}
-		// }()
-		/**
-		 *@author lml
-		 *添加 RTCP 反馈处理和 PLI 定时发送
-		 */
+		// @author lml
+		// 添加 RTCP 反馈处理和 PLI 定时发送
 		go func() {
 			// 创建一个定时器，每 3 秒请求一次关键帧
 			// 这样可以确保新加入的订阅者能在最多 3 秒内看到画面
@@ -185,30 +171,28 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 			go func() {
 				b := make([]byte, 1500)
 				for {
-					if _, _, err := receiver.Read(b); err != nil {
+					if _, _, err = receiver.Read(b); err != nil {
 						return
 					}
 				}
 			}()
 
-			for {
-				select {
-				case <-ticker.C:
-					// 如果推流连接已经关闭，退出协程
-					if pc.ConnectionState() == webrtc.PeerConnectionStateClosed {
-						return
-					}
+			for range ticker.C {
+				// 如果推流连接已经关闭，退出协程
+				if pc.ConnectionState() == webrtc.PeerConnectionStateClosed {
+					return
+				}
 
-					// 只有视频轨道需要请求关键帧 (PLI)
-					if remote.Kind() == webrtc.RTPCodecTypeVideo {
-						// 向推流端发送 Picture Loss Indication (PLI)
-						err := pc.WriteRTCP([]rtcp.Packet{
-							&rtcp.PictureLossIndication{MediaSSRC: uint32(remote.SSRC())},
-						})
-						if err != nil {
-							logger.Log.Sugar().Debugf("发送 PLI 失败: %v", err)
-							return
-						}
+				// 只有视频轨道需要请求关键帧 (PLI)
+				if remote.Kind() == webrtc.RTPCodecTypeVideo {
+					err = pc.WriteRTCP([]rtcp.Packet{
+						&rtcp.PictureLossIndication{
+							MediaSSRC: uint32(remote.SSRC()),
+						},
+					})
+					if err != nil {
+						logger.Log.Sugar().Debugf("发送 PLI 失败: %v", err)
+						return
 					}
 				}
 			}
@@ -273,7 +257,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 		}()
 
 		//将新轨道分发给所有订阅者
-		distributeTrackToAllSubscribersV2(room, user.UID, local)
+		distributeTrackToAllSubscribers(room, user.UID, local)
 	})
 
 	// 设置远端描述并创建 Answer
@@ -508,14 +492,10 @@ func ensureDownPC(user *User) error {
 		if c == nil {
 			return
 		}
-		/***
-		 * @author lml
-		 *  ✅ 统一使用带锁的发送函数
-		 */
-		// candidateJSON, _ := json.Marshal(c.ToJSON())
-		// sendRawToWS(user.WS, "down_candidate", json.RawMessage(`{"candidate":`+string(candidateJSON)+`}`))
+
+		// @author lml
+		//统一使用带锁的发送函数
 		sendToWS(user, user.WS, "down_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
-		//======================================================================================
 	})
 
 	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
@@ -537,11 +517,9 @@ func createAndSendDownOffer(subscriber *User, publisherUID string) {
 		return
 	}
 
-	// 🚨 关键：如果当前状态不是 Stable，说明上一次协商还没完
-	/**
-	 *@author: lml
-	 *保证了服务器在向订阅者推送多个媒体流时，能够有条不紊地排队发送，避免因为信令步调不一致导致的连接中断。
-	 */
+	// 关键：如果当前状态不是 Stable，说明上一次协商还没完
+	// @author: lml
+	// 保证了服务器在向订阅者推送多个媒体流时，能够有条不紊地排队发送，避免因为信令步调不一致导致的连接中断
 	if pc.SignalingState() != webrtc.SignalingStateStable {
 		subscriber.mu.Unlock()
 		logger.Log.Sugar().Warnf("订阅者 %s 状态忙 (%s), 500ms 后重试...", subscriber.UID, pc.SignalingState().String())
@@ -569,9 +547,7 @@ func createAndSendDownOffer(subscriber *User, publisherUID string) {
 		SDP:  offer.SDP,
 	}
 
-	/**
-	*✅ 统一使用带锁的发送函数
-	 */
+	// 统一使用带锁的发送函数
 	sendToWS(subscriber, subscriber.WS, "down_offer", payload)
 }
 
@@ -631,10 +607,8 @@ func cleanupUser(room *Room, user *User) {
 
 	logger.Log.Sugar().Infof("用户 %s 从房间 %s 移除.", user.UID, room.ID)
 
-	/**
-	* @authot lml
-	* ✅ 如果该用户是发布者，复制房间内的剩余用户列表
-	 */
+	// @authot lml
+	// 如果该用户是发布者，复制房间内的剩余用户列表
 	var remainingUsers []*User
 	if isPublisher {
 		remainingUsers = make([]*User, 0, len(room.Users))
@@ -645,15 +619,64 @@ func cleanupUser(room *Room, user *User) {
 
 	room.Mu.Unlock()
 
-	/**
-	 * @author lml
-	 * 知所有订阅者用户离开了
-	 */
+	// @author lml
+	// 通知所有订阅者用户离开了
 	if isPublisher {
 		// 通知所有订阅者用户离开了
 		payload := map[string]string{"uid": user.UID}
 		for _, subscriber := range remainingUsers {
 			sendToWS(subscriber, subscriber.WS, "user_leave", payload)
+		}
+
+		// 通知所有订阅者，移除该用户（发布者）的track
+		// 只要该用户是发布者，就通知其他用户进行清理
+		notifySubscribersToRemoveTracks(room, user.UID)
+	}
+}
+
+// 通知所有订阅者移除指定发布者的track
+func notifySubscribersToRemoveTracks(room *Room, publisherUID string) {
+	room.Mu.RLock()
+	users := make([]*User, 0, len(room.Users))
+	for _, u := range room.Users {
+		users = append(users, u)
+	}
+	room.Mu.RUnlock()
+
+	for _, u := range users {
+		if u.UID == publisherUID {
+			continue
+		}
+
+		u.mu.Lock()
+		pc := u.DownPC
+		u.mu.Unlock()
+
+		if pc == nil {
+			continue
+		}
+
+		var needsNegotiation bool
+
+		for _, sender := range pc.GetSenders() {
+			track := sender.Track()
+			if track == nil {
+				continue
+			}
+
+			if track.StreamID() == publisherUID {
+				if err := pc.RemoveTrack(sender); err != nil {
+					logger.Log.Sugar().Errorf("从订阅者 %s 的 DownPC 移除轨道失败 (发布者: %s), 错误: %v", u.UID, publisherUID, err)
+					continue
+				}
+				needsNegotiation = true
+				logger.Log.Sugar().Infof("成功从订阅者 %s 移除发布者 %s 的轨道。", u.UID, publisherUID)
+			}
+		}
+
+		if needsNegotiation {
+			// 当使用 RemoveTrack 成功后，需要发送新的 Offer
+			go createAndSendDownOffer(u, "stream_cleanup") // 更好的提示信息
 		}
 	}
 }
