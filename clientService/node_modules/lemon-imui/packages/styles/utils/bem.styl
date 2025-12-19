@@ -1,0 +1,67 @@
+// -----------------------------------------------------------------------------
+// bem-sugar.styl --- Bem mixins for stylus language
+//
+// Copyright (c) 2017 Ilya Obuhov
+//
+// Author: Ilya Obuhov <iobuhov.mail@gmail.com>
+// URL: https://github.com/iobuhov/stylus-bem-sugar
+
+
+e-prefix    ?= '__'
+m-prefix    ?= '--'
+m-delimiter ?= '_'
+group-store = ()
+
+str()
+  join('', arguments)
+
+b(name)
+  .{name}
+    {block}
+
+group()
+  caller = called-from[0]
+  level = length(called-from) + 1
+  elements = group-store[level]
+  selector = ()
+  parent = null
+  {join(',', elements)}
+    {block}
+  group-store[level] = null
+
+m(mod, val=null)
+  val    = val && m-delimiter + val
+  mod    = m-prefix + mod
+  mod    = val ? mod + val : mod
+  caller = called-from[0]
+  if caller in ('group')
+    level = length(called-from)
+    mod = str('&', mod)
+    if group-store[level] == null
+      group-store[level] = mod
+    else
+      push(group-store[level], mod)
+  &{mod}
+    {block}
+
+e(element)
+  element = e-prefix + element
+  caller  = called-from[0]
+  gcaller = called-from[1]
+  if caller in ('group')
+    level = length(called-from)
+    if gcaller in ('e' 'm')
+      element = str('& ^[0]', element)
+    else
+      element = str('^[0]', element)
+    if group-store[level] == null
+      group-store[level] = element
+    else
+      push(group-store[level], element)
+  else
+    if caller in ('e' 'm')
+      & ^[0]{element}
+        {block}
+    else
+      &{element}
+        {block}

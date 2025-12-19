@@ -6,9 +6,11 @@ import (
 	"io"
 	"net/http"
 	"sfu/internal/logger"
+	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
+	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v4"
 )
@@ -147,20 +149,68 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 		if c == nil {
 			return
 		}
-		candidateJSON, _ := json.Marshal(c.ToJSON())
-		sendRawToWS(user.WS, "up_candidate", json.RawMessage(`{"candidate":`+string(candidateJSON)+`}`))
+
+		/**
+		 * @author lml
+		 *  ✅ 统一使用带锁的发送函数
+		 */
+		sendToWS(user, user.WS, "up_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
 	})
 
 	// 4. 设置媒体轨道回调
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+
 		//接收 RTCP (重要：用于控制和质量反馈)
+		// go func() {
+		// 	b := make([]byte, 1500)
+		// 	for {
+		// 		if _, _, err = receiver.Read(b); err != nil {
+		// 			return
+		// 		}
+		// 		// TODO 完整的 SFU 应该在这里解析 RTCP 包，如 PLI/NACK，并响应或转发。
+		// 	}
+		// }()
+		/**
+		 *@author lml
+		 *添加 RTCP 反馈处理和 PLI 定时发送
+		 */
 		go func() {
-			b := make([]byte, 1500)
-			for {
-				if _, _, err = receiver.Read(b); err != nil {
-					return
+			// 创建一个定时器，每 3 秒请求一次关键帧
+			// 这样可以确保新加入的订阅者能在最多 3 秒内看到画面
+			ticker := time.NewTicker(time.Second * 3)
+			defer ticker.Stop()
+
+			// 同时我们要消耗来自推流端的 RTCP 包（如接收报告等）
+			// 这是 Pion 库的要求，否则会导致缓存满而停止处理
+			go func() {
+				b := make([]byte, 1500)
+				for {
+					if _, _, err := receiver.Read(b); err != nil {
+						return
+					}
 				}
-				// TODO 完整的 SFU 应该在这里解析 RTCP 包，如 PLI/NACK，并响应或转发。
+			}()
+
+			for {
+				select {
+				case <-ticker.C:
+					// 如果推流连接已经关闭，退出协程
+					if pc.ConnectionState() == webrtc.PeerConnectionStateClosed {
+						return
+					}
+
+					// 只有视频轨道需要请求关键帧 (PLI)
+					if remote.Kind() == webrtc.RTPCodecTypeVideo {
+						// 向推流端发送 Picture Loss Indication (PLI)
+						err := pc.WriteRTCP([]rtcp.Packet{
+							&rtcp.PictureLossIndication{MediaSSRC: uint32(remote.SSRC())},
+						})
+						if err != nil {
+							logger.Log.Sugar().Debugf("发送 PLI 失败: %v", err)
+							return
+						}
+					}
+				}
 			}
 		}()
 
@@ -260,6 +310,62 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 
 	// 6. 向客户端发送 answer
 	sendToWS(user, user.WS, "up_answer", map[string]string{"sdp": answer.SDP})
+
+	go func() {
+		time.Sleep(200 * time.Millisecond) // 延迟 200ms 等待自己的推流连接稳定
+		distributeAllExistingTracksToNewSubscriber(room, user)
+	}()
+}
+
+/**
+ * @author lml 【新增函数】
+ * 分发所有已存在的轨道给新的订阅者
+ */
+func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User) {
+	room.Mu.RLock()
+	// 获取所有正在发布的 Track
+	tracks := room.Tracks
+	room.Mu.RUnlock()
+
+	if len(tracks) == 0 {
+		return // 房间内当前没有发布者
+	}
+
+	if err := ensureDownPC(newSubscriber); err != nil {
+		logger.Log.Sugar().Errorf("为新订阅者 %s 确保DownPC失败: %v", newSubscriber.UID, err)
+		return
+	}
+
+	newSubscriber.mu.Lock()
+	downPC := newSubscriber.DownPC
+	newSubscriber.mu.Unlock()
+
+	// 遍历所有发布者的所有轨道
+	for publisherUID, ut := range tracks {
+		if publisherUID == newSubscriber.UID {
+			continue // 不订阅自己的流
+		}
+
+		// 尝试添加音频轨道
+		if ut.Audio != nil {
+			if _, err := downPC.AddTrack(ut.Audio); err != nil {
+				logger.Log.Sugar().Errorf("新订阅者 %s 添加音频 Track 失败: %v", newSubscriber.UID, err)
+			}
+		}
+		// 尝试添加视频轨道
+		if ut.Video != nil {
+			if _, err := downPC.AddTrack(ut.Video); err != nil {
+				logger.Log.Sugar().Errorf("新订阅者 %s 添加视频 Track 失败: %v", newSubscriber.UID, err)
+			}
+		}
+	}
+
+	// 完成所有 Track 添加后，创建并发送 DownOffer 进行一次性协商
+	if len(tracks) > 0 { // 只有房间内有流才需要发送 Offer
+		logger.Log.Sugar().Infof("新订阅者 %s 订阅了 %d 个已存在的流，发送 DownOffer", newSubscriber.UID, len(tracks))
+		// ⚠️ 这里的 publisherUID 只是一个占位符，不重要，因为 SDP 中包含所有流信息
+		createAndSendDownOffer(newSubscriber, newSubscriber.UID)
+	}
 }
 
 // 为每个订阅者添加本地 track (local -> downPC)
@@ -316,8 +422,14 @@ func ensureDownPC(user *User) error {
 		if c == nil {
 			return
 		}
-		candidateJSON, _ := json.Marshal(c.ToJSON())
-		sendRawToWS(user.WS, "down_candidate", json.RawMessage(`{"candidate":`+string(candidateJSON)+`}`))
+		/***
+		 * @author lml
+		 *  ✅ 统一使用带锁的发送函数
+		 */
+		// candidateJSON, _ := json.Marshal(c.ToJSON())
+		// sendRawToWS(user.WS, "down_candidate", json.RawMessage(`{"candidate":`+string(candidateJSON)+`}`))
+		sendToWS(user, user.WS, "down_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
+		//======================================================================================
 	})
 
 	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
@@ -334,10 +446,27 @@ func ensureDownPC(user *User) error {
 func createAndSendDownOffer(subscriber *User, publisherUID string) {
 	subscriber.mu.Lock()
 	pc := subscriber.DownPC
-	subscriber.mu.Unlock()
 	if pc == nil {
+		subscriber.mu.Unlock()
 		return
 	}
+
+	// 🚨 关键：如果当前状态不是 Stable，说明上一次协商还没完
+	/**
+	 *@author: lml
+	 *保证了服务器在向订阅者推送多个媒体流时，能够有条不紊地排队发送，避免因为信令步调不一致导致的连接中断。
+	 */
+	if pc.SignalingState() != webrtc.SignalingStateStable {
+		subscriber.mu.Unlock()
+		logger.Log.Sugar().Warnf("订阅者 %s 状态忙 (%s), 500ms 后重试...", subscriber.UID, pc.SignalingState().String())
+
+		// 延迟 500ms 递归调用
+		time.AfterFunc(500*time.Millisecond, func() {
+			createAndSendDownOffer(subscriber, publisherUID)
+		})
+		return
+	}
+	subscriber.mu.Unlock()
 
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
@@ -345,16 +474,19 @@ func createAndSendDownOffer(subscriber *User, publisherUID string) {
 		return
 	}
 	if err := pc.SetLocalDescription(offer); err != nil {
-		logger.Log.Sugar().Errorf("设置local description for DownPC offer失败,uid:%s,err:%v", subscriber.UID, err)
+		logger.Log.Sugar().Errorf("设置local description失败,uid:%s,err:%v", subscriber.UID, err)
 		return
 	}
 
 	payload := DownOfferPayload{
-		From: publisherUID, // 仅作为信息提示
+		From: publisherUID,
 		SDP:  offer.SDP,
 	}
-	b, _ := json.Marshal(payload)
-	sendRawToWS(subscriber.WS, "down_offer", b)
+
+	/**
+	*✅ 统一使用带锁的发送函数
+	 */
+	sendToWS(subscriber, subscriber.WS, "down_offer", payload)
 }
 
 // 当客户端返回 down_answer 消息时，将其设为远端描述（Remote Description）
@@ -404,33 +536,35 @@ func sendRawToWS(conn *websocket.Conn, event string, raw json.RawMessage) {
 
 // 清理
 func cleanupUser(room *Room, user *User) {
-	user.mu.Lock()
-	if user.closed {
-		user.mu.Unlock()
-		return
-	}
-	user.closed = true
-
-	logger.Log.Sugar().Infof("清理用户 %s...", user.UID)
-
-	if user.UpPC != nil {
-		if err := user.UpPC.Close(); err != nil {
-			logger.Log.Sugar().Errorf("关闭UpPC失败,uid:%s,err:%v", user.UID, err)
-		}
-	}
-	if user.DownPC != nil {
-		if err := user.DownPC.Close(); err != nil {
-			logger.Log.Sugar().Errorf("关闭DownPC失败,uid:%s,err:%v", user.UID, err)
-		}
-	}
-	if err := user.WS.Close(); err != nil {
-		logger.Log.Sugar().Errorf("关闭WS失败,uid:%s,err:%v", user.UID, err)
-	}
-	user.mu.Unlock()
-
 	room.Mu.Lock()
+	_, isPublisher := room.Tracks[user.UID]
 	delete(room.Users, user.UID)
 	delete(room.Tracks, user.UID)
 	logger.Log.Sugar().Infof("用户 %s 从房间 %s 移除.", user.UID, room.ID)
+
+	/**
+	* @authot lml
+	* ✅ 如果该用户是发布者，复制房间内的剩余用户列表
+	 */
+	var remainingUsers []*User
+	if isPublisher {
+		remainingUsers = make([]*User, 0, len(room.Users))
+		for _, u := range room.Users {
+			remainingUsers = append(remainingUsers, u)
+		}
+	}
+
 	room.Mu.Unlock()
+
+	/**
+	 * @author lml
+	 * 知所有订阅者用户离开了
+	 */
+	if isPublisher {
+		// 通知所有订阅者用户离开了
+		payload := map[string]string{"uid": user.UID}
+		for _, subscriber := range remainingUsers {
+			sendToWS(subscriber, subscriber.WS, "user_leave", payload)
+		}
+	}
 }

@@ -1,0 +1,55 @@
+{
+    "name": "easymde",
+    "version": "2.20.0",
+    "description": "A simple, beautiful, and embeddable JavaScript Markdown editor that easy to use. Features include autosaving and spell checking.",
+    "files": [
+        "dist/**/*",
+        "src/**/*",
+        "types/easymde.d.ts"
+    ],
+    "keywords": [
+        "embeddable",
+        "markdown",
+        "editor",
+        "javascript",
+        "fontawesome"
+    ],
+    "main": "src/js/easymde.js",
+    "types": "types/easymde.d.ts",
+    "license": "MIT",
+    "author": "Jeroen Akkerman",
+    "dependencies": {
+        "@types/codemirror": "^5.60.10",
+        "@types/marked": "^4.0.7",
+        "codemirror": "^5.65.15",
+        "codemirror-spell-checker": "1.1.2",
+        "marked": "^4.1.0"
+    },
+    "devDependencies": {
+        "browserify": "^17.0.0",
+        "cypress": "^13.2.0",
+        "eslint": "^8.50.0",
+        "eslint-plugin-cypress": "^2.15.1",
+        "gulp": "^4.0.2",
+        "gulp-clean-css": "^4.3.0",
+        "gulp-concat": "^2.6.1",
+        "gulp-eslint": "^6.0.0",
+        "gulp-header": "^2.0.9",
+        "gulp-rename": "^2.0.0",
+        "gulp-terser": "^2.1.0",
+        "gulp-uglify": "^3.0.2",
+        "typescript": "^5.2.2",
+        "vinyl-buffer": "^1.0.1",
+        "vinyl-source-stream": "^2.0.0"
+    },
+    "repository": "github:Ionaru/easy-markdown-editor",
+    "scripts": {
+        "prepare": "gulp",
+        "test": "npm run lint && npm run test:types && npm run e2e",
+        "lint": "gulp lint",
+        "cypress:lint": "eslint cypress",
+        "cypress:run": "cypress run",
+        "e2e": "gulp && npm run cypress:lint && npm run cypress:run",
+        "test:types": "tsc --project types/tsconfig.json"
+    }
+}

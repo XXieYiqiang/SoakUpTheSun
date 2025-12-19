@@ -1,0 +1,50 @@
+{
+  "name": "codemirror-spell-checker",
+  "version": "1.1.2",
+  "description": "Dead-simple spell checking in CodeMirror.",
+  "keywords": [
+    "codemirror",
+    "code",
+    "mirror",
+    "spell",
+    "checker",
+    "checking",
+    "spellchecker",
+    "spellchecking",
+    "javascript"
+  ],
+  "homepage": "https://github.com/NextStepWebs/codemirror-spell-checker",
+  "main": "./src/js/spell-checker.js",
+  "license": "MIT",
+  "company": "Next Step Webs, Inc.",
+  "author": {
+    "name": "Wes Cossick",
+    "url": "http://www.WesCossick.com"
+  },
+  "bugs": {
+    "url": "https://github.com/NextStepWebs/codemirror-spell-checker/issues"
+  },
+  "dependencies": {
+    "typo-js": "*"
+  },
+  "devDependencies": {
+    "browserify": "*",
+    "debug": "*",
+    "eslint": "*",
+    "gulp": "*",
+    "gulp-concat": "*",
+    "gulp-debug": "*",
+    "gulp-eslint": "*",
+    "gulp-header": "*",
+    "gulp-jsbeautifier": "*",
+    "gulp-clean-css": "*",
+    "gulp-rename": "*",
+    "gulp-uglify": "*",
+    "vinyl-source-stream": "*",
+    "vinyl-buffer": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NextStepWebs/codemirror-spell-checker"
+  }
+}

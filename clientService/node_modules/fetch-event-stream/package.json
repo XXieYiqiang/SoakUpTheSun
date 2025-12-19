@@ -1,0 +1,42 @@
+{
+  "name": "fetch-event-stream",
+  "version": "0.1.6",
+  "description": "A tiny (741b) utility for Server Sent Event (SSE) streaming via `fetch` and Web Streams API",
+  "keywords": [
+    "SSE",
+    "Server-Sent Events",
+    "Events",
+    "EventSource"
+  ],
+  "author": {
+    "name": "Luke Edwards",
+    "email": "luke@lukeed.com",
+    "url": "https://lukeed.com"
+  },
+  "repository": "lukeed/fetch-event-stream",
+  "license": "MIT",
+  "main": "./script/mod.js",
+  "module": "./esm/mod.js",
+  "types": "./types/mod.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./types/mod.d.ts",
+        "default": "./esm/mod.js"
+      },
+      "require": {
+        "types": "./types/mod.d.ts",
+        "default": "./script/mod.js"
+      }
+    }
+  },
+  "scripts": {
+    "test": "node test_runner.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "picocolors": "^1.0.0",
+    "@deno/shim-deno": "~0.18.0"
+  },
+  "_generatedBy": "dnt@dev"
+}

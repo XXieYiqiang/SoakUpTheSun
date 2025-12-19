@@ -1,0 +1,47 @@
+flex-column()
+  display flex
+  flex-direction column
+  
+scrollbar-theme($color=#1f252d, $background=#6d6d6d)
+  &::-webkit-scrollbar
+    width 5px
+    height 5px
+  
+  &::-webkit-scrollbar-track-piece
+    background-color $background
+  
+  &::-webkit-scrollbar-thumb:vertical
+    height 5px
+    background-color $color
+  
+  &::-webkit-scrollbar-thumb:horizontal 
+    width 5px
+    background-color $background
+
+scrollbar-dark() 
+  scrollbar-theme()
+
+scrollbar-light() 
+  scrollbar-theme(#aaa, transparent)
+
+
+vertical-center()
+  &::after
+    display inline-block
+    content ''
+    height 100%
+    vertical-align middle
+
+position-center($type fixed) 
+  position $type
+  top 50%
+  left 50%
+  transform translate(-50%, -50%)
+ellipsis()
+  text-overflow ellipsis
+  overflow hidden
+  white-space nowrap
+word-break()
+  word-break break-all
+  word-wrap break-word
+  white-space pre-wrap

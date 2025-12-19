@@ -1,0 +1,1 @@
+{"version":3,"file":"text_line_stream.d.ts","sourceRoot":"","sources":["../../../../../../src/deps/jsr.io/@std/streams/0.221.0/text_line_stream.ts"],"names":[],"mappings":"AAGA,8CAA8C;AAC9C,MAAM,WAAW,qBAAqB;IACpC;;;;OAIG;IACH,OAAO,CAAC,EAAE,OAAO,CAAC;CACnB;AAED;;;;;;;;;;;;;GAaG;AACH,qBAAa,cAAe,SAAQ,eAAe,CAAC,MAAM,EAAE,MAAM,CAAC;;IAGjE,iCAAiC;gBACrB,OAAO,GAAE,qBAA0C;CAoChE"}

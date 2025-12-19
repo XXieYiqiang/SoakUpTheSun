@@ -1,0 +1,38 @@
+{
+  "name": "videojs-swf",
+  "description": "The Flash-fallback video player for video.js (http://videojs.com)",
+  "version": "5.4.2",
+  "copyright": "Copyright 2014 Brightcove, Inc. https://github.com/videojs/video-js-swf/blob/master/LICENSE",
+  "keywords": [
+    "flash",
+    "video",
+    "player"
+  ],
+  "homepage": "http://videojs.com",
+  "author": "Brightcove",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/videojs/video-js-swf.git"
+  },
+  "devDependencies": {
+    "async": "~0.2.9",
+    "chg": "^0.3.2",
+    "flex-sdk": "4.6.0-0",
+    "grunt": "~0.4.0",
+    "grunt-bumpup": "~0.5.0",
+    "grunt-cli": "~0.1.0",
+    "grunt-connect": "~0.2.0",
+    "grunt-contrib-jshint": "~0.4.3",
+    "grunt-contrib-qunit": "~0.2.1",
+    "grunt-contrib-watch": "~0.1.4",
+    "grunt-npm": "~0.0.2",
+    "grunt-prompt": "~0.1.2",
+    "grunt-shell": "~0.6.1",
+    "grunt-tagrelease": "~0.3.1",
+    "qunitjs": "~1.12.0",
+    "video.js": "^5.9.2"
+  },
+  "scripts": {
+    "version": "chg release -y && grunt dist && git add -f dist/ && git add CHANGELOG.md"
+  }
+}
