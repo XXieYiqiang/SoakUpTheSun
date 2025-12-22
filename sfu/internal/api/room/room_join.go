@@ -1,20 +1,41 @@
 package room
 
 import (
+	"context"
+	"fmt"
+	"sfu/internal/cache"
 	"sfu/internal/logger"
 	"sfu/internal/model/res"
 	"sfu/internal/ws"
 
+	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
 // JoinRoom 加入房间
-func (RoomApi) JoinRoom(c *gin.Context) {
+func (r *RoomApi) JoinRoom(c *gin.Context) {
 	roomID := c.Query("roomID")
 	if roomID == "" {
 		logger.Log.Error("需要房间号")
+		return
+	}
+	roomToken := c.GetHeader("room-token")
+	if roomToken == "" {
+		res.Failed(c, "您没有该房间权限")
+		return
+	}
+
+	// 获取房间token信息
+	roomTokenInfo, err := r.getRoomTokenInfo(c.Request.Context(), roomToken)
+	if err != nil {
+		res.Failed(c, "房间不存在")
+		logger.Log.Error("房间token不存在", zap.Error(err))
+		return
+	}
+	if roomTokenInfo.RoomID != roomID {
+		res.Failed(c, "房间不匹配")
 		return
 	}
 
@@ -40,7 +61,7 @@ func (RoomApi) JoinRoom(c *gin.Context) {
 		return
 	}
 
-	// TODO 获取用户信息
+	// TODO 获取志愿者用户信息
 	user := &ws.User{
 		UID:  uuid.New().String(),
 		WS:   conn,
@@ -68,4 +89,17 @@ func (RoomApi) JoinRoom(c *gin.Context) {
 	logger.Log.Info("成功向新用户发送 server_ready 信令", zap.String("uid", user.UID))
 
 	go ws.HandleWS(room, user)
+}
+
+func (r *RoomApi) getRoomTokenInfo(ctx context.Context, roomToken string) (*RoomPreload, error) {
+	roomTokenKey := cache.ROOM_TOKEN_KEY + roomToken
+	roomTokenInfoStr, err := r.redis.Get(ctx, roomTokenKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("获取房间token信息失败: %w", err)
+	}
+	var roomTokenInfo RoomPreload
+	if err := sonic.UnmarshalString(roomTokenInfoStr, roomTokenInfo); err != nil {
+		return nil, fmt.Errorf("解析房间token信息失败: %w", err)
+	}
+	return &roomTokenInfo, nil
 }
