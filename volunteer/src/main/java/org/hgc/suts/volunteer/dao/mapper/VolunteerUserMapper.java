@@ -9,6 +9,8 @@ import org.apache.ibatis.cursor.Cursor;
 import org.apache.ibatis.mapping.ResultSetType;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
 
+import java.util.Map;
+
 /**
 * @author 谢毅强
 * @description 针对表【volunteer_user】的数据库操作Mapper
@@ -46,6 +48,12 @@ public interface VolunteerUserMapper extends BaseMapper<VolunteerUserDO> {
     @Options(resultSetType = ResultSetType.FORWARD_ONLY, fetchSize = Integer.MIN_VALUE)
     @Select("SELECT * FROM volunteer_user WHERE del_flag = 0 ORDER BY score DESC, id ASC LIMIT #{limit}")
     Cursor<VolunteerUserDO> scanTopNUsers(@Param("limit") long limit);
+
+    /**
+     * 批量增加用户评分 (支持小数)
+     * @param scoreMap key: userId, value: scoreToAdd
+     */
+    int batchAddScore(@Param("scoreMap") Map<Long, Double> scoreMap);
 }
 
 

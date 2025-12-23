@@ -33,14 +33,14 @@ public interface VolunteerRatingMapper extends BaseMapper<VolunteerRatingDO> {
     /**
      * 批量更新状态
      */
-    @Update("<script>" +
-            "UPDATE volunteer_rating SET is_calculated = 1, update_time = NOW() " +
-            "WHERE id IN " +
-            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>" +
-            "#{id}" +
-            "</foreach>" +
-            "</script>")
+
     void batchUpdateCalculatedStatus(@Param("ids") List<Long> ids);
+
+    /**
+     * 读取未结算数据
+     */
+    List<VolunteerRatingDO> selectUncalculatedBatch(@Param("lastId") Long lastId, @Param("limit") int limit);
+
 }
 
 
