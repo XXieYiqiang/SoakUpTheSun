@@ -43,7 +43,7 @@ type SaveRoomResponse struct {
 }
 
 // SaveRoom 创建房间
-func (r RoomApi) SaveRoom(c *gin.Context) {
+func (r *RoomApi) SaveRoom(c *gin.Context) {
 	// 获取用户信息
 	userToken := c.GetHeader("token")
 	if userToken == "" {

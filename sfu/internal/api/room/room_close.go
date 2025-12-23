@@ -17,7 +17,7 @@ type CloseRoomReq struct {
 }
 
 // CloseRoom 关闭房间
-func (r RoomApi) CloseRoom(c *gin.Context) {
+func (r *RoomApi) CloseRoom(c *gin.Context) {
 	req := new(CloseRoomReq)
 	if err := c.ShouldBindJSON(&req); err != nil {
 		res.Failed(c, "请输入房间号")

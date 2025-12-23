@@ -20,7 +20,7 @@ type GetRoomInfoResponse struct {
 }
 
 // GetRoomInfo 获取房间信息
-func (r RoomApi) GetRoomInfo(c *gin.Context) {
+func (r *RoomApi) GetRoomInfo(c *gin.Context) {
 	roomID := c.Param("roomID")
 	if roomID == "" {
 		res.Failed(c, "请输入房间号")
