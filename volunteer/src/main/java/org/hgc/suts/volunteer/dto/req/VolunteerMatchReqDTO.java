@@ -2,8 +2,10 @@ package org.hgc.suts.volunteer.dto.req;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.yetus.audience.InterfaceAudience;
 
 /**
  * 匹配请求参数，是一些权重，权重越大说明越不需要,反之，负数为需要
@@ -11,6 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class VolunteerMatchReqDTO {
     /**
      * 性别权重

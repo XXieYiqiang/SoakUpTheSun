@@ -37,6 +37,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.DigestUtils;
 
 import java.util.Map;
@@ -61,6 +62,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private final RedissonClient redissonClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final PictureRemoteService pictureRemoteService;
+    private final TransactionTemplate transactionTemplate;
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void register(UserRegisterReqDTO requestParam) {
@@ -80,9 +82,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             }
             UserDO userDO = BeanUtil.toBean(requestParam, UserDO.class);
             userDO.setUserPassword(getEncryptPassword(requestParam.getUserPassword()));
-            baseMapper.insert(userDO);
+
+            // 使用事务，防止用户创建成功但是空间创建失败.
+            transactionTemplate.execute(status -> {
+                try {
+                    int insertResult = baseMapper.insert(userDO);
+                    if (insertResult <= 0) {
+                        throw new ClientException("用户注册失败");
+                    }
+                    pictureRemoteService.createPictureSpace(userDO.getId());
+                    return Boolean.TRUE;
+                } catch (Exception e) {
+                    status.setRollbackOnly();
+                    throw e;
+                }
+            });
             userRegisterCachePenetrationBloomFilter.add(requestParam.getUserAccount());
-            pictureRemoteService.createPictureSpace(userDO.getId());
         } catch (DuplicateKeyException ex) {
             throw new ClientException(BaseErrorCode.USER_ACCOUNT_EXIST_ERROR);
         } finally {

@@ -1,6 +1,8 @@
 server:
   port: 10013
 spring:
+  application:
+    name: volunteer
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
     username: root
@@ -15,6 +17,10 @@ spring:
     uris: http://localhost:9200
     username: elastic
     password: 123456
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
 
 rocketmq:
   name-server: 127.0.0.1:9876

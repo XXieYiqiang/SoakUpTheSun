@@ -70,5 +70,10 @@ public class RedisCacheConstant {
      */
     public static final String VOLUNTEER_MATCH_COOLDOWN_PREFIX_KEY = "suts:volunteer:match:cooldown:";
 
+    /**
+     * 短链接key
+     */
+    public static final String SHORT_LINK_GOTO = "suts:short-link:goto:%s";
+
 
 }
