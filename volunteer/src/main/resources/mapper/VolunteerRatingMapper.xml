@@ -18,4 +18,22 @@
     <sql id="Base_Column_List">
         id,user_id,volunteer_id,rating,is_calculated,create_time,update_time,del_flag
     </sql>
+
+    <select id="selectUncalculatedBatch" resultType="org.hgc.suts.volunteer.dao.entity.VolunteerRatingDO">
+        SELECT id, user_id, rating
+        FROM t_volunteer_rating
+        WHERE is_calculated = 0
+          AND id > #{lastId}
+        ORDER BY id ASC
+            LIMIT #{limit}
+    </select>
+
+    <update id="batchUpdateCalculatedStatus">
+        UPDATE t_volunteer_rating
+        SET is_calculated = 1, update_time = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
 </mapper>
