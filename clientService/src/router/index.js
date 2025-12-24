@@ -15,6 +15,12 @@ const routes = [
     meta: { title: '身份验证', public: true } // 标记为公开，不需登录即可访问
   },
   {
+    path: '/register',
+    name: 'register',
+    component: () => import('@/views/RegisterView.vue'), // 确保路径正确
+    meta: { title: '身份验证', public: true } // 标记为公开，不需登录即可访问
+  },
+  {
     path: '/chatRoom',
     name: 'chatRoom',
     component: () => import('@/views/ChatRoom.vue')
@@ -33,6 +39,11 @@ const routes = [
     path: '/join',
     name: 'JoinRoom',
     component: () => import('../views/JoinRoom.vue')
+  },
+  {
+    path: '/userView',
+    name: 'userView',
+    component: () => import('../views/UserView.vue')
   }
 ];
 

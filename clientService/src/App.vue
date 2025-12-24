@@ -13,7 +13,8 @@
         <div class="user-info-panel">
           <template v-if="isLogin">
             <div class="avatar-wrapper">
-              <img :src="userInfo.avatarUrl" alt="头像" class="user-avatar" />
+              <!-- <img :src="userInfo.avatarUrl" alt="头像" class="user-avatar" /> -->
+              <img src="https://mjzjcdn.heycross.com/240601/u/ddwo6zwjgu80/b59855eb-9b0c-4291-9be2-56237c23b85f.jpg" alt="头像" class="user-avatar" />
               <div class="status-dot"></div>
             </div>
             <span class="username">{{ userInfo.userName }}</span>
@@ -41,7 +42,11 @@
                 <span class="icon">🏠</span> <span class="text">首页</span>
               </router-link></li>
                <li><router-link to="/chatRoom" class="nav-item">
-                <span class="icon">📚</span> <span class="text">聊天室</span>
+                <span class="icon">💬</span> <span class="text">聊天室</span>
+              </router-link></li>
+
+               <li><router-link to="/userView" class="nav-item">
+                <span class="icon">👤</span> <span class="text">用户视图</span>
               </router-link></li>
           </ul>
         </div>
@@ -59,6 +64,7 @@
 
 <script>
 import { handleLogin, handleLogout } from '@/api/user'
+import { getToken } from '@/utils/auth'
 import WebSocketService from '@/plugins/ws';
 import Vue from 'vue'
 
@@ -81,7 +87,7 @@ export default {
     showLayout() {
       // 假设你的登录页面的路由名称是 'login'
       // 只有当前路由名称不是 'login' 时，才显示头部和侧边栏
-      return this.$route.name !== 'login';
+      return this.$route.name !== 'login' && this.$route.name !== 'register';
     },
     isLogin() {
       return this.$store.getters['user/isLogin'];
@@ -106,13 +112,9 @@ export default {
       this.$router.push({ name: 'login' });
     },
     async doLogout() {
-
-      const param = {
-        userId: this.userInfo.userId
-      }
       try {
-        const res = await handleLogout(param)
-        if (res && res.data && res.data.code === 200) {
+        const res = await handleLogout(getToken())
+        if (res && res.data && res.data.code === '0') {
           this.$store.dispatch('user/logout')
         } else {
           this.$message.error(res.data.message);

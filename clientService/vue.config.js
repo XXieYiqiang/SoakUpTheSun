@@ -10,7 +10,7 @@ module.exports = {
   productionSourceMap: false,
   devServer: {
     proxy: {
-      ['/api']: {
+      ['/apis']: {
         target: process.env.VUE_APP_BASE_API,
         ws: true,
         changeOrigin: true,

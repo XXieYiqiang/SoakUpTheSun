@@ -9,17 +9,17 @@
 
                 <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="tech-form">
 
-                    <el-form-item prop="phone">
-                        <el-input v-model="loginForm.phone" placeholder="请输入手机号" prefix-icon="el-icon-mobile-phone"
+                    <el-form-item prop="userAccount">
+                        <el-input v-model="loginForm.userAccount" placeholder="请输入用户账号" prefix-icon="el-icon-mobile-phone"
                             class="tech-input"></el-input>
                     </el-form-item>
 
-                    <el-form-item prop="passWord">
-                        <el-input v-model="loginForm.passWord" type="password" show-password placeholder="请输入密码"
+                    <el-form-item prop="password">
+                        <el-input v-model="loginForm.password" type="password" show-password placeholder="请输入密码"
                             prefix-icon="el-icon-lock" class="tech-input"></el-input>
                     </el-form-item>
 
-                    <el-form-item prop="captcha">
+                    <!-- <el-form-item prop="captcha">
                         <div class="captcha-item">
                             <el-input v-model="loginForm.captcha" placeholder="请输入验证码" prefix-icon="el-icon-key"
                                 class="tech-input captcha-input"></el-input>
@@ -29,7 +29,7 @@
                             </div>
                         </div>
 
-                    </el-form-item>
+                    </el-form-item> -->
 
                     <el-form-item class="login-action-item">
                         <el-button type="primary" @click="submitLogin" class="tech-btn block-btn primary"
@@ -64,20 +64,15 @@ export default {
             isLoading: false, // 登录加载状态
             captchaUrl: '', // 验证码图片URL
             loginForm: {
-                phone: "",
-                passWord: "",
+                userAccount: "",
+                password: "",
                 captcha: "", // 验证码字段
             },
             loginRules: {
-                phone: [
-                    { required: true, message: "请输入手机号", trigger: "blur" },
-                    {
-                        pattern: /^1[3-9]\d{9}$/,
-                        message: "请输入合法的手机号",
-                        trigger: "blur",
-                    },
+                userAccount: [
+                    { required: true, message: "请输入用户名", trigger: "blur" },
                 ],
-                passWord: [{ required: true, message: "请输入密码", trigger: "blur" }],
+                password: [{ required: true, message: "请输入密码", trigger: "blur" }],
                 captcha: [
                     { required: true, message: "请输入验证码", trigger: "blur" },
                     { min: 4, max: 6, message: "验证码长度不符", trigger: "blur" } // 假设长度是4-6位
@@ -95,20 +90,20 @@ export default {
                 ...this.loginForm
             }
 
-            const resData = await getPicturCode(param)
+            // const resData = await getPicturCode(param)
 
-            if (resData && resData.data && resData.data.code === 200) {
+            // if (resData && resData.data && resData.data.code === 200) {
 
-                console.log('resData.data.data.captcha', resData.data.data)
+            //     console.log('resData.data.data.captcha', resData.data.data)
 
-                this.captchaUrl = 'data:image/png;base64,' + resData.data.data.img
+            //     this.captchaUrl = 'data:image/png;base64,' + resData.data.data.img
 
 
-                console.log('this.captchaUrl', this.captchaUrl)
-            }else{
+            //     console.log('this.captchaUrl', this.captchaUrl)
+            // } else {
 
-                this.$message.error(resData.data.message)
-            }
+            //     this.$message.error(resData.data.message)
+            // }
 
         },
         // 跳转到注册页面
@@ -125,8 +120,12 @@ export default {
                         // ⚠️ 假设 handleLogin 返回的数据结构为 { data: { code: 200, data: { token: '...', userInfo: {} }, message: '...' } }
                         const res = await handleLogin(param);
                         const data = res.data.data;
-                        if (res.data.code === 200 && data.token) {
+                        console.log('dataxxx==',data)
+                        if (res.data.success && res.data.code === '0') {
                             const token = data.token;
+                            /**
+                             * todo：这里需要后端把登录用户信息传过来
+                             */
                             const user = data.userInfo;
                             that.$store.dispatch('user/login', {
                                 token,
