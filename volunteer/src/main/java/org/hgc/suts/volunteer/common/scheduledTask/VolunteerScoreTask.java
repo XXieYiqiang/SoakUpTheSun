@@ -1,24 +1,24 @@
 package org.hgc.suts.volunteer.common.scheduledTask;
 
-import cn.hutool.core.collection.CollUtil; // 引入 Hutool 集合工具
-import cn.hutool.core.convert.Convert;
-import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.map.MapUtil;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hgc.suts.volunteer.dao.entity.VolunteerRatingDO;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerRatingMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -28,88 +28,91 @@ public class VolunteerScoreTask {
     private final VolunteerRatingMapper volunteerRatingMapper;
     private final VolunteerUserMapper volunteerUserMapper;
     private final ElasticsearchClient elasticsearchClient;
+    private final PlatformTransactionManager transactionManager;
+    private TransactionTemplate transactionTemplate;
 
     private static final String ES_INDEX_NAME = "volunteer_index";
-    // 定义批处理大小，防止 SQL 过长或内存溢出
-    private static final int BATCH_SIZE = 1000;
+    private static final int BATCH_SIZE = 2000;
 
-    @Scheduled(cron = "0 0 2 * * ?")
-    @Transactional
-    public void calculateDailyScore() {
-        log.info("================ 开始执行志愿者评分结算任务 ================");
-        long start = System.currentTimeMillis();
-
-        // 1. 获得每个人要加的分
-        List<Map<String, Object>> aggList = volunteerRatingMapper.selectAggregatedUncalculatedRatings();
-
-        if (aggList == null || aggList.isEmpty()) {
-            log.info("无待结算数据");
-            return;
-        }
-
-        List<Long> allRatingIds = new ArrayList<>();
-        List<VolunteerUserDO> usersToSyncEs = new ArrayList<>();
-
-        for (Map<String, Object> map : aggList) {
-            try {
-                Long userId = Convert.toLong(map.get("userId"));
-                Double totalAddScore = Convert.toDouble(map.get("totalAddScore"));
-                String idListStr = Convert.toStr(map.get("idListStr"));
-
-                if (userId == null) continue;
-
-                // 2. 更新 MySQL 分数
-                if (totalAddScore > 0) {
-                    volunteerUserMapper.addScore(userId, totalAddScore);
-                }
-
-                // 记录成功处理的评价 ID
-                if (StrUtil.isNotBlank(idListStr)) {
-                    List<Long> ids = Arrays.stream(idListStr.split(","))
-                            .map(Long::parseLong)
-                            .toList();
-                    allRatingIds.addAll(ids);
-                }
-
-                // 准备 ES 数据 (为了保证数据一致性，重新查一次最新数据)
-                VolunteerUserDO latestUser = volunteerUserMapper.selectById(userId);
-                if (latestUser != null) {
-                    usersToSyncEs.add(latestUser);
-                }
-
-                if (usersToSyncEs.size() >= BATCH_SIZE) {
-                    syncToEsBatch(usersToSyncEs);
-                    usersToSyncEs.clear(); // 释放内存
-                }
-
-            } catch (Exception e) {
-                // 单个用户失败不应该中断任务
-                log.error("================ 结算异常 userId={} ================", map.get("userId"), e);
-            }
-        }
-
-        // 处理剩余未同步的 ES 数据
-        if (!usersToSyncEs.isEmpty()) {
-            syncToEsBatch(usersToSyncEs);
-        }
-
-        if (!allRatingIds.isEmpty()) {
-            // 使用 Hutool 将大 List 切割成多个小 List
-            List<List<Long>> splitIds = CollUtil.split(allRatingIds, BATCH_SIZE);
-            for (List<Long> batchIds : splitIds) {
-                volunteerRatingMapper.batchUpdateCalculatedStatus(batchIds);
-            }
-        }
-
-        log.info("================ 结算结束，耗时: {}ms，处理评价数: {} ================",
-                System.currentTimeMillis() - start, allRatingIds.size());
+    @PostConstruct
+    public void init() {
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
-    private void syncToEsBatch(List<VolunteerUserDO> userList) {
-        if (CollUtil.isEmpty(userList)) return;
+    // 凌晨2点运行
+    @Scheduled(cron = "0 0 2 * * ?")
+    public void calculateDailyScore() {
+        log.info(">>> [ScoreTask] 开始执行评分结算 (Double精度: 1.0/0.7)...");
+        long start = System.currentTimeMillis();
+        long lastId = 0L;
+        int totalProcessed = 0;
+
+        while (true) {
+            // 1. 游标拉取数据，防止内存溢出
+            List<VolunteerRatingDO> ratingList = volunteerRatingMapper.selectUncalculatedBatch(lastId, BATCH_SIZE);
+            if (CollUtil.isEmpty(ratingList)) {
+                break;
+            }
+
+            lastId = ratingList.get(ratingList.size() - 1).getId();
+
+            // 2. 事务处理本批次
+            try {
+                transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+                    @Override
+                    protected void doInTransactionWithoutResult(TransactionStatus status) {
+                        processBatch(ratingList);
+                    }
+                });
+                totalProcessed += ratingList.size();
+                log.info("定时任务[评分更新]-批次完成, 当前游标ID: {}, 累计处理: {}", lastId, totalProcessed);
+            } catch (Exception e) {
+                log.error("定时任务[评分更新]-批次异常回滚, lastId={}", lastId, e);
+                break;
+            }
+        }
+        log.info("定时任务[评分更新]-结算结束, 耗时: {}ms", System.currentTimeMillis() - start);
+    }
+
+    private void processBatch(List<VolunteerRatingDO> ratingList) {
+        // 1. 改成在内存中聚合，减少mysql压力
+        Map<Long, Double> userScoreMap = new HashMap<>();
+        List<Long> ratingIds = new ArrayList<>();
+
+        for (VolunteerRatingDO rating : ratingList) {
+            // 默认无好评
+            double scoreToAdd = 0.7;
+            if (rating.getRating() != null && rating.getRating() == 1) {
+                // 好评加分
+                scoreToAdd = 1.0;
+            }
+            // 合并
+            userScoreMap.merge(rating.getUserId(), scoreToAdd, Double::sum);
+            ratingIds.add(rating.getId());
+        }
+
+        if (MapUtil.isEmpty(userScoreMap)) return;
+
+        // 2. 批量更新 MySQL (执行 score = score + 加分)
+        volunteerUserMapper.batchAddScore(userScoreMap);
+
+        // 3. 标记已结算
+        if (CollUtil.isNotEmpty(ratingIds)) {
+            volunteerRatingMapper.batchUpdateCalculatedStatus(ratingIds);
+        }
+
+        // 4. 同步 ES
+        syncToEsSafely(userScoreMap.keySet());
+    }
+
+    private void syncToEsSafely(Set<Long> userIds) {
         try {
+            if (CollUtil.isEmpty(userIds)) return;
+            // 查出最新的分数
+            List<VolunteerUserDO> users = volunteerUserMapper.selectBatchIds(userIds);
+
             BulkRequest.Builder br = new BulkRequest.Builder();
-            for (VolunteerUserDO user : userList) {
+            for (VolunteerUserDO user : users) {
                 br.operations(op -> op
                         .index(idx -> idx
                                 .index(ES_INDEX_NAME)
@@ -118,12 +121,9 @@ public class VolunteerScoreTask {
                         )
                 );
             }
-            BulkResponse result = elasticsearchClient.bulk(br.build());
-            if (result.errors()) {
-                log.error("ES批量同步存在失败");
-            }
+            elasticsearchClient.bulk(br.build());
         } catch (Exception e) {
-            log.error("ES批量同步异常", e);
+            log.error("定时任务[评分更新]- ES同步异常,请管理员进行修复", e);
         }
     }
 }
