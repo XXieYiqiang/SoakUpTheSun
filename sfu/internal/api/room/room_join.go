@@ -21,9 +21,11 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 		logger.Log.Error("需要房间号")
 		return
 	}
-	roomToken := c.GetHeader("room-token")
+	roomToken := c.Query("roomToken")
+	fmt.Println("roomToken=", roomToken)
 	if roomToken == "" {
 		res.Failed(c, "您没有该房间权限")
+		fmt.Println("您没有该房间权限=")
 		return
 	}
 
@@ -98,7 +100,8 @@ func (r *RoomApi) getRoomTokenInfo(ctx context.Context, roomToken string) (*Room
 		return nil, fmt.Errorf("获取房间token信息失败: %w", err)
 	}
 	var roomTokenInfo RoomPreload
-	if err := sonic.UnmarshalString(roomTokenInfoStr, roomTokenInfo); err != nil {
+	// @author:lml; 这里必须要加&引用传参
+	if err := sonic.UnmarshalString(roomTokenInfoStr, &roomTokenInfo); err != nil {
 		return nil, fmt.Errorf("解析房间token信息失败: %w", err)
 	}
 	return &roomTokenInfo, nil

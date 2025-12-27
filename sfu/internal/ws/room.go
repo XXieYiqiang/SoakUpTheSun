@@ -3,6 +3,7 @@ package ws
 import (
 	"sfu/utils/base58x"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -41,6 +42,8 @@ type User struct {
 	wsMu             sync.Mutex                // 保护 WS 写入操作
 	UpCandidateQueue []webrtc.ICECandidateInit // 新增：用于缓冲在上行 Offer 之前到达的 ICE Candidate
 	candidateMu      sync.Mutex                // 新增锁来保护 UpCandidateQueue，
+
+	negotiateTimer *time.Timer
 }
 
 // UserTracks 存储用户发布的本地轨道
