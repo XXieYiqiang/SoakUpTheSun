@@ -75,7 +75,9 @@ export default {
   name: "SFURoom",
   data() {
     return {
-      wsUrl: "ws://192.168.43.143:8080/room/join",
+      // wsUrl: "ws://192.168.43.143:8080/room/join",
+      // wsUrl: "ws://127.0.0.1:10014/room/join",
+      wsUrl: "ws://192.168.43.95:10014/room/join",
       roomID: "2jcfZY1wsrddK5D2g3Np1z",
       uid: "user_" + Math.floor(Math.random() * 10000),
       tokenInfo: 'tokenInfo',
@@ -113,7 +115,7 @@ export default {
   },
   mounted() {
     // 获取跳转时传入的 roomID 和 token
-    const roomID = this.$route.params.roomID;
+    const roomID = this.$route.params.roomId;
     const tokenInfo = this.$route.params.token;
 
     console.log('当前房间ID:', roomID);
@@ -122,6 +124,8 @@ export default {
     if (roomID && tokenInfo) {
       this.roomID = roomID;
       this.tokenInfo = tokenInfo;
+
+      this.joinRoom()
     } else {
       console.error('参数丢失，无法进入聊天室');
     }
@@ -155,7 +159,8 @@ export default {
     },
 
     connectWS() {
-      const url = `${this.wsUrl}?roomID=${this.roomID}&uid=${this.uid}`;
+      // const url = `${this.wsUrl}?roomID=${this.roomID}&uid=${this.uid}`;
+      const url = `${this.wsUrl}?roomID=${this.roomID}&uid=${this.uid}&roomToken=${encodeURIComponent(this.tokenInfo)}`;
       this.ws = new WebSocket(url);
       this.ws.onopen = () => {
         this.joined = true;
