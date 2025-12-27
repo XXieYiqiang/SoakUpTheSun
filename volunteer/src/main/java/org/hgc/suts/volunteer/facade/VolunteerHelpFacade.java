@@ -13,6 +13,7 @@ import org.hgc.suts.volunteer.dto.resp.ShortLinkHelpRespDTO;
 import org.hgc.suts.volunteer.remote.ShortlinkRemoteService;
 import org.hgc.suts.volunteer.service.VolunteerMatchService;
 import org.hgc.suts.volunteer.service.VolunteerTaskService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -27,13 +28,17 @@ public class VolunteerHelpFacade {
     private final VolunteerMatchService volunteerMatchService;
     private final StringRedisTemplate stringRedisTemplate;
 
+    @Value("${sfu-front.domain.default}")
+    private String stuFrontDomain;
+
     // 核心编排方法
     public void createAndDispatchHelp() {
 
         // 创建房间
 
         // 返回房间链接和令牌(暂时写死)
-        String targetRoomLink ="https://www.baidu.com/";
+        String room="123456";
+        String targetRoomLink =String.format(stuFrontDomain,room);
         String authTicket="token";
         // 创建短链接
         ShortLinkHelpReqDTO shortLinkHelpReqDTO = ShortLinkHelpReqDTO.builder()
