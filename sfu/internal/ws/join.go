@@ -152,7 +152,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 
 		// @author lml
 		// 统一使用带锁的发送函数
-		sendToWS(user, user.WS, "up_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
+		sendToWS(user, "up_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
 	})
 
 	// 4. 设置媒体轨道回调
@@ -293,7 +293,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 	}
 
 	// 6. 向客户端发送 answer
-	sendToWS(user, user.WS, "up_answer", map[string]string{"sdp": answer.SDP})
+	sendToWS(user, "up_answer", map[string]string{"sdp": answer.SDP})
 
 	go func() {
 		time.Sleep(200 * time.Millisecond) // 延迟 200ms 等待自己的推流连接稳定
@@ -333,13 +333,13 @@ func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User)
 		// 尝试添加音频轨道
 		if ut.Audio != nil {
 			if _, err := downPC.AddTrack(ut.Audio); err != nil {
-				logger.Log.Sugar().Errorf("新订阅者 %s 添加音频 Track 失败: %v", newSubscriber.UID, err)
+				continue
 			}
 		}
 		// 尝试添加视频轨道
 		if ut.Video != nil {
 			if _, err := downPC.AddTrack(ut.Video); err != nil {
-				logger.Log.Sugar().Errorf("新订阅者 %s 添加视频 Track 失败: %v", newSubscriber.UID, err)
+				continue
 			}
 		}
 	}
@@ -410,7 +410,7 @@ func ensureDownPC(user *User) error {
 
 		// @author lml
 		//统一使用带锁的发送函数
-		sendToWS(user, user.WS, "down_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
+		sendToWS(user, "down_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
 	})
 
 	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
@@ -462,7 +462,7 @@ func createAndSendDownOffer(subscriber *User, publisherUID string) {
 	}
 
 	// 统一使用带锁的发送函数
-	sendToWS(subscriber, subscriber.WS, "down_offer", payload)
+	sendToWS(subscriber, "down_offer", payload)
 }
 
 // 当客户端返回 down_answer 消息时，将其设为远端描述（Remote Description）
@@ -487,7 +487,7 @@ func setDownAnswer(user *User, sdp string) error {
 	return nil
 }
 
-func sendToWS(user *User, conn *websocket.Conn, event string, data any) {
+func sendToWS(user *User, event string, data any) {
 	payload, err := json.Marshal(data)
 	if err != nil {
 		logger.Log.Sugar().Errorf("序列化数据失败,uid:%s,event:%s,err:%v", user.UID, event, err)
@@ -495,7 +495,7 @@ func sendToWS(user *User, conn *websocket.Conn, event string, data any) {
 	}
 	user.wsMu.Lock()
 	defer user.wsMu.Unlock()
-	sendRawToWS(conn, event, payload)
+	sendRawToWS(user.WS, event, payload)
 }
 
 func sendRawToWS(conn *websocket.Conn, event string, raw json.RawMessage) {
@@ -536,13 +536,11 @@ func cleanupUser(room *Room, user *User) {
 
 	room.Mu.Unlock()
 
-	// @author lml
 	// 通知所有订阅者用户离开了
 	if isPublisher {
-		// 通知所有订阅者用户离开了
 		payload := map[string]string{"uid": user.UID}
 		for _, subscriber := range remainingUsers {
-			sendToWS(subscriber, subscriber.WS, "user_leave", payload)
+			sendToWS(subscriber, "user_leave", payload)
 		}
 
 		// 通知所有订阅者，移除该用户（发布者）的track
