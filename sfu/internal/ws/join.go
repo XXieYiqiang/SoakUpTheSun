@@ -347,7 +347,7 @@ func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User)
 	// 完成所有 Track 添加后，创建并发送 DownOffer 进行一次性协商
 	if len(tracks) > 0 { // 只有房间内有流才需要发送 Offer
 		logger.Log.Sugar().Infof("新订阅者 %s 订阅了 %d 个已存在的流，发送 DownOffer", newSubscriber.UID, len(tracks))
-		// ⚠️ 这里的 publisherUID 只是一个占位符，不重要，因为 SDP 中包含所有流信息
+		// 这里的 publisherUID 只是一个占位符，不重要，因为 SDP 中包含所有流信息
 		createAndSendDownOffer(newSubscriber, newSubscriber.UID)
 	}
 }
@@ -383,91 +383,6 @@ func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webr
 		}
 
 		// 添加 Track 成功，触发重新协商
-		go createAndSendDownOffer(u, publisherUID)
-	}
-}
-
-// distributeTrackToAllSubscribersV2 为每个订阅者添加本地 track (local -> downPC)
-// 设置 RTCP 监听，以接收和转发 PLI (关键帧请求)。
-func distributeTrackToAllSubscribersV2(room *Room, publisherUID string, track webrtc.TrackLocal) {
-	room.Mu.RLock()
-	// 创建用户列表的副本，以便在遍历时可以安全地释放锁
-	users := make([]*User, 0, len(room.Users))
-	for _, u := range room.Users {
-		users = append(users, u)
-	}
-	room.Mu.RUnlock()
-
-	for _, u := range users {
-		// 排除发布者自己
-		if u.UID == publisherUID {
-			continue
-		}
-
-		// 确保订阅者 (Subscriber) 的 DownPC 存在并初始化
-		if err := ensureDownPC(u); err != nil {
-			logger.Log.Sugar().Errorf("确保DownPC失败,subscriber %s: %v", u.UID, err)
-			continue
-		}
-
-		u.mu.Lock()
-		pc := u.DownPC
-		u.mu.Unlock()
-
-		var sender *webrtc.RTPSender
-		var err error
-
-		// AddTrack 返回 RTPSender，需要它来监听 RTCP (PLI)
-		if sender, err = pc.AddTrack(track); err != nil {
-			// 如果轨道已经添加过 (例如，由于并发调用)，则忽略错误并继续。
-			logger.Log.Sugar().Errorf("添加track到DownPC失败,subscriber %s: %v", u.UID, err)
-			continue
-		}
-		logger.Log.Sugar().Infof("成功向订阅者 %s 的 DownPC 添加轨道 (来自 %s)", u.UID, publisherUID)
-
-		// 监听 Sender 返回的 RTCP (即订阅者发来的 PLI 请求)
-		go func(sender *webrtc.RTPSender, publisherUID string, subscriberUID string) {
-			for {
-				pkts, _, readErr := sender.ReadRTCP()
-				if readErr != nil {
-					// DownPC 关闭或错误时退出
-					return
-				}
-
-				// 检查是否是 PLI 请求
-				for _, p := range pkts {
-					if _, ok := p.(*rtcp.PictureLossIndication); ok {
-						logger.Log.Sugar().Infof("收到订阅者 %s 的 PLI 请求 (发布者: %s)。准备转发...", subscriberUID, publisherUID)
-
-						// 转发 PLI 给发布者 UpPC
-						room.Mu.RLock()
-						pubUser := room.Users[publisherUID]
-						room.Mu.RUnlock()
-
-						if pubUser != nil && pubUser.UpPC != nil {
-							// 遍历发布者 UpPC 的所有接收器 (Receiver)
-							for _, receiver := range pubUser.UpPC.GetReceivers() {
-								track := receiver.Track()
-								// 找到正确的 Receiver 来发送 PLI (通常通过 SSRC 匹配)
-								if track != nil {
-									// 通过 WriteRTCP 发送 PLI 请求给发布者客户端
-									_ = pubUser.UpPC.WriteRTCP([]rtcp.Packet{
-										&rtcp.PictureLossIndication{
-											MediaSSRC: uint32(track.SSRC()),
-										},
-									})
-									logger.Log.Sugar().Infof("PLI 已转发给发布者 %s", publisherUID)
-									break // 找到并发送后退出 receiver 循环
-								}
-							}
-						}
-					}
-				}
-			}
-		}(sender, publisherUID, u.UID)
-
-		// 触发重新协商 (发送 Down Offer)
-		// AddTrack 成功后，必须发送 Offer 通知客户端新轨道的到来
 		go createAndSendDownOffer(u, publisherUID)
 	}
 }
@@ -510,6 +425,13 @@ func ensureDownPC(user *User) error {
 
 // 从服务端的 downPC 创建 Offer 并发送给订阅者（客户端需回复 down_answer 消息）
 func createAndSendDownOffer(subscriber *User, publisherUID string) {
+	// 防止并发协商
+	if !subscriber.downNegotiating.CompareAndSwap(false, true) {
+		return
+	}
+
+	defer subscriber.downNegotiating.Store(false)
+
 	subscriber.mu.Lock()
 	pc := subscriber.DownPC
 	if pc == nil {
@@ -517,28 +439,20 @@ func createAndSendDownOffer(subscriber *User, publisherUID string) {
 		return
 	}
 
-	// 关键：如果当前状态不是 Stable，说明上一次协商还没完
-	// @author: lml
-	// 保证了服务器在向订阅者推送多个媒体流时，能够有条不紊地排队发送，避免因为信令步调不一致导致的连接中断
+	// 如果当前状态不是 Stable，说明上一次协商还没完
 	if pc.SignalingState() != webrtc.SignalingStateStable {
-		subscriber.mu.Unlock()
-		logger.Log.Sugar().Warnf("订阅者 %s 状态忙 (%s), 500ms 后重试...", subscriber.UID, pc.SignalingState().String())
-
-		// 延迟 500ms 递归调用
-		time.AfterFunc(500*time.Millisecond, func() {
-			createAndSendDownOffer(subscriber, publisherUID)
-		})
+		logger.Log.Sugar().Infof("DownPC not stable, skip offer, uid=%s, state=%s", subscriber.UID, pc.SignalingState().String())
 		return
 	}
 	subscriber.mu.Unlock()
 
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
-		logger.Log.Sugar().Errorf("创建DownPC offer失败,uid:%s,err:%v", subscriber.UID, err)
+		logger.Log.Sugar().Errorf("Create DownPC offer failed,uid:%s,err:%v", subscriber.UID, err)
 		return
 	}
 	if err := pc.SetLocalDescription(offer); err != nil {
-		logger.Log.Sugar().Errorf("设置local description失败,uid:%s,err:%v", subscriber.UID, err)
+		logger.Log.Sugar().Errorf("Set local description failed,uid:%s,err:%v", subscriber.UID, err)
 		return
 	}
 
@@ -567,6 +481,9 @@ func setDownAnswer(user *User, sdp string) error {
 	if err := pc.SetRemoteDescription(ans); err != nil {
 		return err
 	}
+
+	// answer 回来，协商完成
+	user.downNegotiating.Store(false)
 	return nil
 }
 
