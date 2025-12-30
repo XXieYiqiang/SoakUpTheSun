@@ -89,9 +89,13 @@ func HandleWS(room *Room, user *User) {
 			pc := user.UpPC
 			user.mu.Unlock()
 			if pc != nil {
-				if err := pc.AddICECandidate(p.Candidate); err != nil {
-					logger.Log.Sugar().Errorf("添加up_candidate失败,uid:%s,err:%v", user.UID, err)
-				}
+				_ = pc.AddICECandidate(p.Candidate)
+			} else {
+				// 防止因为 pc 还没创建而丢失 Candidate
+				// 在这里也存入 UpCandidateQueue
+				user.candidateMu.Lock()
+				user.UpCandidateQueue = append(user.UpCandidateQueue, p.Candidate)
+				user.candidateMu.Unlock()
 			}
 
 		case "down_answer":
@@ -343,7 +347,7 @@ func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User)
 	// 完成所有 Track 添加后，创建并发送 DownOffer 进行一次性协商
 	if hasTracks && len(tracks) > 0 {
 		logger.Log.Sugar().Infof("新订阅者 %s 订阅了 %d 个已存在的流，发送 DownOffer", newSubscriber.UID, len(tracks))
-		createAndSendDownOffer(newSubscriber, newSubscriber.UID)
+		createAndSendDownOffer(newSubscriber)
 	}
 }
 
@@ -377,7 +381,7 @@ func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webr
 		}
 
 		// 添加 Track 成功，触发重新协商
-		go createAndSendDownOffer(u, publisherUID)
+		go createAndSendDownOffer(u)
 	}
 }
 
@@ -418,45 +422,52 @@ func ensureDownPC(user *User) error {
 }
 
 // 从服务端的 downPC 创建 Offer 并发送给订阅者（客户端需回复 down_answer 消息）
-func createAndSendDownOffer(subscriber *User, publisherUID string) {
-	// 防止并发协商
+func createAndSendDownOffer(subscriber *User) {
+	// 如果当前正在协商中，标记 '协商结束后需要再次运行'，然后退出
 	if !subscriber.downNegotiating.CompareAndSwap(false, true) {
+		subscriber.downNeedRetry.Store(true)
+		logger.Log.Sugar().Debugf("订阅者 %s 正在协商中，标记重试并跳过", subscriber.UID)
 		return
 	}
 
-	defer subscriber.downNegotiating.Store(false)
+	// 核心协商逻辑
+	go func() {
+		// 确保函数退出时处理重试逻辑
+		defer func() {
+			subscriber.downNegotiating.Store(false)
+			// 如果在协商期间有新的 Track 变动，再次触发协商
+			if subscriber.downNeedRetry.CompareAndSwap(true, false) {
+				logger.Log.Sugar().Infof("订阅者 %s 协商期间有变动，触发补偿协商", subscriber.UID)
+				createAndSendDownOffer(subscriber)
+			}
+		}()
 
-	subscriber.mu.Lock()
-	pc := subscriber.DownPC
-	if pc == nil {
+		subscriber.mu.Lock()
+		pc := subscriber.DownPC
+		if pc == nil || pc.SignalingState() != webrtc.SignalingStateStable {
+			subscriber.mu.Unlock()
+			return
+		}
+
+		offer, err := pc.CreateOffer(nil)
+		if err != nil {
+			subscriber.mu.Unlock()
+			logger.Log.Sugar().Errorf("创建 DownOffer 失败: %v", err)
+			return
+		}
+
+		if err := pc.SetLocalDescription(offer); err != nil {
+			subscriber.mu.Unlock()
+			logger.Log.Sugar().Errorf("设置 LocalDescription 失败: %v", err)
+			return
+		}
 		subscriber.mu.Unlock()
-		return
-	}
 
-	// 如果当前状态不是 Stable，说明上一次协商还没完
-	if pc.SignalingState() != webrtc.SignalingStateStable {
-		logger.Log.Sugar().Infof("DownPC not stable, skip offer, uid=%s, state=%s", subscriber.UID, pc.SignalingState().String())
-		return
-	}
-	subscriber.mu.Unlock()
-
-	offer, err := pc.CreateOffer(nil)
-	if err != nil {
-		logger.Log.Sugar().Errorf("Create DownPC offer failed,uid:%s,err:%v", subscriber.UID, err)
-		return
-	}
-	if err := pc.SetLocalDescription(offer); err != nil {
-		logger.Log.Sugar().Errorf("Set local description failed,uid:%s,err:%v", subscriber.UID, err)
-		return
-	}
-
-	payload := DownOfferPayload{
-		From: publisherUID,
-		SDP:  offer.SDP,
-	}
-
-	// 统一使用带锁的发送函数
-	sendToWS(subscriber, "down_offer", payload)
+		// 发送给客户端
+		sendToWS(subscriber, "down_offer", DownOfferPayload{
+			SDP: offer.SDP,
+		})
+	}()
 }
 
 // 当客户端返回 down_answer 消息时，将其设为远端描述（Remote Description）
@@ -466,18 +477,19 @@ func setDownAnswer(user *User, sdp string) error {
 	user.mu.Unlock()
 
 	if pc == nil {
-		return errors.New("no down pc to set answer")
+		return errors.New("no down pc")
 	}
+
 	ans := webrtc.SessionDescription{
 		Type: webrtc.SDPTypeAnswer,
 		SDP:  sdp,
 	}
+
+	// 设置远端描述，这会使 SignalingState 回到 Stable
 	if err := pc.SetRemoteDescription(ans); err != nil {
 		return err
 	}
 
-	// answer 回来，协商完成
-	user.downNegotiating.Store(false)
 	return nil
 }
 
@@ -585,7 +597,7 @@ func notifySubscribersToRemoveTracks(room *Room, publisherUID string) {
 
 		if needsNegotiation {
 			// 当使用 RemoveTrack 成功后，需要发送新的 Offer
-			go createAndSendDownOffer(u, "stream_cleanup") // 更好的提示信息
+			go createAndSendDownOffer(u) // 更好的提示信息
 		}
 	}
 }

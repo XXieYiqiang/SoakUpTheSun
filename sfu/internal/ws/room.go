@@ -40,7 +40,8 @@ type User struct {
 	Role             UserRole                  // 用户角色
 	mu               sync.Mutex                // 保护 UpPC, DownPC, closed
 	wsMu             sync.Mutex                // 保护 WS 写入操作
-	downNegotiating  atomic.Bool               // 下行 PC 是否正在协商中
+	downNegotiating  atomic.Bool               // 是否正在进行一次完整的 SDP 交换
+	downNeedRetry    atomic.Bool               // 协商期间是否有新的 Track 变更需要再次协商
 	UpCandidateQueue []webrtc.ICECandidateInit // 新增：用于缓冲在上行 Offer 之前到达的 ICE Candidate
 	candidateMu      sync.Mutex                // 新增锁来保护 UpCandidateQueue，
 }

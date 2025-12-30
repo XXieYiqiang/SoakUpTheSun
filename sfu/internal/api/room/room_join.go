@@ -25,19 +25,18 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 	fmt.Println("roomToken=", roomToken)
 	if roomToken == "" {
 		res.Failed(c, "您没有该房间权限")
-		fmt.Println("您没有该房间权限=")
+		logger.Log.Error("没有该房间权限")
 		return
 	}
 
 	// 获取房间token信息
 	roomTokenInfo, err := r.getRoomTokenInfo(c.Request.Context(), roomToken)
 	if err != nil {
-		res.Failed(c, "房间不存在")
 		logger.Log.Error("房间token不存在", zap.Error(err))
 		return
 	}
 	if roomTokenInfo.RoomID != roomID {
-		res.Failed(c, "房间不匹配")
+		logger.Log.Error("房间不匹配")
 		return
 	}
 
@@ -51,14 +50,13 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 	// TODO 可以读取房间角色判断是否满人
 	currentNum := len(room.Users)
 	if currentNum+1 > 3 {
-		res.Failed(c, "房间已满")
+		logger.Log.Error("房间已满")
 		return
 	}
 
 	// 升级websocket
 	conn, err := ws.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		res.Failed(c, "创建连接失败")
 		logger.Log.Error("创建websocket连接失败", zap.Error(err))
 		return
 	}
