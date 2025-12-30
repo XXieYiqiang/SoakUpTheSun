@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"sfu/internal/logger"
 	"time"
@@ -127,7 +128,7 @@ func HandleWS(room *Room, user *User) {
 
 // 处理客户端发送的 offer (client -> server)
 func handleUpOffer(room *Room, user *User, sdp string) {
-	// 1. 创建 PeerConnection
+	// 创建 PeerConnection
 	api := webrtc.NewAPI()
 	pc, err := api.NewPeerConnection(webrtc.Configuration{})
 	if err != nil {
@@ -135,7 +136,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 		return
 	}
 
-	// 2. 存储 PC (需要加锁)
+	// 存储 PC (需要加锁)
 	user.mu.Lock()
 	if user.UpPC != nil {
 		_ = user.UpPC.Close()
@@ -144,21 +145,17 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 	user.UpPC = pc
 	user.mu.Unlock()
 
-	// 3. 设置 ICE 候选回调
+	// 设置 ICE 候选回调
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
 			return
 		}
-
-		// @author lml
-		// 统一使用带锁的发送函数
 		sendToWS(user, "up_candidate", map[string]webrtc.ICECandidateInit{"candidate": c.ToJSON()})
 	})
 
-	// 4. 设置媒体轨道回调
+	// 设置媒体轨道回调
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 
-		// @author lml
 		// 添加 RTCP 反馈处理和 PLI 定时发送
 		go func() {
 			// 创建一个定时器，每 3 秒请求一次关键帧
@@ -292,7 +289,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 		return
 	}
 
-	// 6. 向客户端发送 answer
+	// 向客户端发送 answer
 	sendToWS(user, "up_answer", map[string]string{"sdp": answer.SDP})
 
 	go func() {
@@ -301,14 +298,12 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 	}()
 }
 
-/**
- * @author lml 【新增函数】
- * 分发所有已存在的轨道给新的订阅者
- */
+// 分发所有已存在的轨道给新的订阅者
 func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User) {
 	room.Mu.RLock()
 	// 获取所有正在发布的 Track
-	tracks := room.Tracks
+	tracks := make(map[string]*UserTracks, len(room.Tracks))
+	maps.Copy(tracks, room.Tracks)
 	room.Mu.RUnlock()
 
 	if len(tracks) == 0 {
@@ -323,6 +318,7 @@ func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User)
 	newSubscriber.mu.Lock()
 	downPC := newSubscriber.DownPC
 	newSubscriber.mu.Unlock()
+	hasTracks := false
 
 	// 遍历所有发布者的所有轨道
 	for publisherUID, ut := range tracks {
@@ -332,28 +328,26 @@ func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User)
 
 		// 尝试添加音频轨道
 		if ut.Audio != nil {
-			if _, err := downPC.AddTrack(ut.Audio); err != nil {
-				continue
+			if _, err := downPC.AddTrack(ut.Audio); err == nil {
+				hasTracks = true
 			}
 		}
 		// 尝试添加视频轨道
 		if ut.Video != nil {
-			if _, err := downPC.AddTrack(ut.Video); err != nil {
-				continue
+			if _, err := downPC.AddTrack(ut.Video); err == nil {
+				hasTracks = true
 			}
 		}
 	}
 
 	// 完成所有 Track 添加后，创建并发送 DownOffer 进行一次性协商
-	if len(tracks) > 0 { // 只有房间内有流才需要发送 Offer
+	if hasTracks && len(tracks) > 0 {
 		logger.Log.Sugar().Infof("新订阅者 %s 订阅了 %d 个已存在的流，发送 DownOffer", newSubscriber.UID, len(tracks))
-		// 这里的 publisherUID 只是一个占位符，不重要，因为 SDP 中包含所有流信息
 		createAndSendDownOffer(newSubscriber, newSubscriber.UID)
 	}
 }
 
 // 为每个订阅者添加本地 track (local -> downPC)
-// Deprecated: 使用 distributeTrackToAllSubscribersV2,该方法会导致前端使用getDisplayMedia获取到的轨道无法播放问题
 func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webrtc.TrackLocal) {
 	room.Mu.RLock()
 	users := make([]*User, 0, len(room.Users))
