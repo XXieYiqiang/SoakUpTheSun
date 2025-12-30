@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.hgc.suts.volunteer.dao.mapper.VolunteerRatingMapper">
+
+    <resultMap id="BaseResultMap" type="org.hgc.suts.volunteer.dao.entity.VolunteerRatingDO">
+            <id property="id" column="id" />
+            <result property="userId" column="user_id" />
+            <result property="volunteerId" column="volunteer_id"/>
+            <result property="rating" column="rating" />
+            <result property="isCalculated" column="is_calculated"/>
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+            <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,user_id,volunteer_id,rating,is_calculated,create_time,update_time,del_flag
+    </sql>
+
+    <select id="selectUncalculatedBatch" resultType="org.hgc.suts.volunteer.dao.entity.VolunteerRatingDO">
+        SELECT id, user_id, rating
+        FROM t_volunteer_rating
+        WHERE is_calculated = 0
+          AND id > #{lastId}
+        ORDER BY id ASC
+            LIMIT #{limit}
+    </select>
+
+    <update id="batchUpdateCalculatedStatus">
+        UPDATE t_volunteer_rating
+        SET is_calculated = 1, update_time = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+</mapper>

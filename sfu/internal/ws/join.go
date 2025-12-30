@@ -50,6 +50,7 @@ type DownOfferPayload struct {
 
 // 处理用户的 WebSocket 消息
 func HandleWS(room *Room, user *User) {
+
 	defer func() {
 		cleanupUser(room, user)
 	}()
@@ -158,8 +159,20 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 	// 4. 设置媒体轨道回调
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 
-		// @author lml
-		// 添加 RTCP 反馈处理和 PLI 定时发送
+		//接收 RTCP (重要：用于控制和质量反馈)
+		// go func() {
+		// 	b := make([]byte, 1500)
+		// 	for {
+		// 		if _, _, err = receiver.Read(b); err != nil {
+		// 			return
+		// 		}
+		// 		// TODO 完整的 SFU 应该在这里解析 RTCP 包，如 PLI/NACK，并响应或转发。
+		// 	}
+		// }()
+		/**
+		 *@author lml
+		 *添加 RTCP 反馈处理和 PLI 定时发送
+		 */
 		go func() {
 			// 创建一个定时器，每 3 秒请求一次关键帧
 			// 这样可以确保新加入的订阅者能在最多 3 秒内看到画面
@@ -171,34 +184,36 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 			go func() {
 				b := make([]byte, 1500)
 				for {
-					if _, _, err = receiver.Read(b); err != nil {
+					if _, _, err := receiver.Read(b); err != nil {
 						return
 					}
 				}
 			}()
 
-			for range ticker.C {
-				// 如果推流连接已经关闭，退出协程
-				if pc.ConnectionState() == webrtc.PeerConnectionStateClosed {
-					return
-				}
-
-				// 只有视频轨道需要请求关键帧 (PLI)
-				if remote.Kind() == webrtc.RTPCodecTypeVideo {
-					err = pc.WriteRTCP([]rtcp.Packet{
-						&rtcp.PictureLossIndication{
-							MediaSSRC: uint32(remote.SSRC()),
-						},
-					})
-					if err != nil {
-						logger.Log.Sugar().Debugf("发送 PLI 失败: %v", err)
+			for {
+				select {
+				case <-ticker.C:
+					// 如果推流连接已经关闭，退出协程
+					if pc.ConnectionState() == webrtc.PeerConnectionStateClosed {
 						return
+					}
+
+					// 只有视频轨道需要请求关键帧 (PLI)
+					if remote.Kind() == webrtc.RTPCodecTypeVideo {
+						// 向推流端发送 Picture Loss Indication (PLI)
+						err := pc.WriteRTCP([]rtcp.Packet{
+							&rtcp.PictureLossIndication{MediaSSRC: uint32(remote.SSRC())},
+						})
+						if err != nil {
+							logger.Log.Sugar().Debugf("发送 PLI 失败: %v", err)
+							return
+						}
 					}
 				}
 			}
 		}()
 
-		// 创建本地 track (TrackLocalStaticRTP)
+		//创建本地 track (TrackLocalStaticRTP)
 		capability := remote.Codec().RTPCodecCapability
 		var local *webrtc.TrackLocalStaticRTP
 		local, err = webrtc.NewTrackLocalStaticRTP(capability, remote.ID(), user.UID)
@@ -207,7 +222,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 			return
 		}
 
-		// 存储本地 track 到房间
+		//4.3 存储本地 track 到房间
 		room.Mu.Lock()
 		ut := room.Tracks[user.UID]
 		if ut == nil {
@@ -260,7 +275,7 @@ func handleUpOffer(room *Room, user *User, sdp string) {
 		distributeTrackToAllSubscribers(room, user.UID, local)
 	})
 
-	// 设置远端描述并创建 Answer
+	// 5. 设置远端描述并创建 Answer
 	offer := webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
 		SDP:  sdp,
@@ -324,19 +339,19 @@ func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User)
 	downPC := newSubscriber.DownPC
 	newSubscriber.mu.Unlock()
 
-	// 遍历所有发布者的所有轨道
+	hasTracks := false
 	for publisherUID, ut := range tracks {
 		if publisherUID == newSubscriber.UID {
-			continue // 不订阅自己的流
+			continue
 		}
 
-		// 尝试添加音频轨道
+		// 添加音频
 		if ut.Audio != nil {
 			if _, err := downPC.AddTrack(ut.Audio); err != nil {
 				continue
 			}
 		}
-		// 尝试添加视频轨道
+		// 添加视频
 		if ut.Video != nil {
 			if _, err := downPC.AddTrack(ut.Video); err != nil {
 				continue
@@ -353,7 +368,6 @@ func distributeAllExistingTracksToNewSubscriber(room *Room, newSubscriber *User)
 }
 
 // 为每个订阅者添加本地 track (local -> downPC)
-// Deprecated: 使用 distributeTrackToAllSubscribersV2,该方法会导致前端使用getDisplayMedia获取到的轨道无法播放问题
 func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webrtc.TrackLocal) {
 	room.Mu.RLock()
 	users := make([]*User, 0, len(room.Users))
@@ -367,7 +381,6 @@ func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webr
 			continue
 		}
 		if err := ensureDownPC(u); err != nil {
-			logger.Log.Sugar().Errorf("确保DownPC失败,subscriber %s: %v", u.UID, err)
 			continue
 		}
 
@@ -375,15 +388,17 @@ func distributeTrackToAllSubscribers(room *Room, publisherUID string, track webr
 		pc := u.DownPC
 		u.mu.Unlock()
 
-		// 尝试添加 Track。在 Unified Plan 下，如果 AddTrack 成功，
-		// 则表示需要发送一个新的 Offer 来通知订阅者新轨道的到来。
+		// 1. 只管添加轨道
 		if _, err := pc.AddTrack(track); err != nil {
-			logger.Log.Sugar().Errorf("添加track到DownPC失败,subscriber %s: %v", u.UID, err)
+			logger.Log.Sugar().Errorf("AddTrack 失败: %v", err)
 			continue
 		}
 
-		// 添加 Track 成功，触发重新协商
-		go createAndSendDownOffer(u, publisherUID)
+		/*
+		 * @author lml
+		 * 改用防抖函数触发协商，而不是直接 go createAndSendDownOffer
+		 */
+		requestNegotiation(u, publisherUID)
 	}
 }
 
@@ -518,14 +533,13 @@ func cleanupUser(room *Room, user *User) {
 	room.Mu.Lock()
 	_, isPublisher := room.Tracks[user.UID]
 	delete(room.Users, user.UID)
-
-	// 删除 Tracks 记录，否则房间状态不准确
 	delete(room.Tracks, user.UID)
-
 	logger.Log.Sugar().Infof("用户 %s 从房间 %s 移除.", user.UID, room.ID)
 
-	// @authot lml
-	// 如果该用户是发布者，复制房间内的剩余用户列表
+	/**
+	* @authot lml
+	* ✅ 如果该用户是发布者，复制房间内的剩余用户列表
+	 */
 	var remainingUsers []*User
 	if isPublisher {
 		remainingUsers = make([]*User, 0, len(room.Users))

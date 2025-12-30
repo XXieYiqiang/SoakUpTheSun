@@ -1,13 +1,13 @@
 const state = {
   token: localStorage.getItem('token') || '',
-  userInfo: (() => {
-    try {
-      return JSON.parse(localStorage.getItem('userInfo'));
-    } catch (e) {
-      console.error('解析 userInfo 失败', e);
-      return null; // 或返回默认空对象 {}
-    }
-  })()
+  // userInfo: (() => {
+  //   try {
+  //     return JSON.parse(localStorage.getItem('userInfo'));
+  //   } catch (e) {
+  //     console.error('解析 userInfo 失败', e);
+  //     return null; // 或返回默认空对象 {}
+  //   }
+  // })()
 };
 
 //store.commit('user/CLEAR_USER');
@@ -35,8 +35,7 @@ const actions = {
     commit('SET_USER_INFO', userInfo);
   },
   logout({ commit,dispatch }) {
-    commit('CLEAR_USER');
-    commit('message/CLEAR_USER_LIST', null, { root: true });
+    commit('CLEAR_USER')
   }
 };
 

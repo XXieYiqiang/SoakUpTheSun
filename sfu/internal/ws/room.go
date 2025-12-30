@@ -4,6 +4,7 @@ import (
 	"sfu/utils/base58x"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -43,6 +44,8 @@ type User struct {
 	downNegotiating  atomic.Bool               // 下行 PC 是否正在协商中
 	UpCandidateQueue []webrtc.ICECandidateInit // 新增：用于缓冲在上行 Offer 之前到达的 ICE Candidate
 	candidateMu      sync.Mutex                // 新增锁来保护 UpCandidateQueue，
+
+	negotiateTimer *time.Timer
 }
 
 // UserTracks 存储用户发布的本地轨道
