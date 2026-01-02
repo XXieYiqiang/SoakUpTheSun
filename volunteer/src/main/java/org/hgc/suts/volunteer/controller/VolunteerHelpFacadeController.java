@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.hgc.suts.volunteer.common.result.Result;
 import org.hgc.suts.volunteer.common.web.Results;
 import org.hgc.suts.volunteer.dto.req.VolunteerCreateTaskReqDTO;
+import org.hgc.suts.volunteer.dto.resp.TargetRoomLinkInfoRespDTO;
 import org.hgc.suts.volunteer.facade.VolunteerHelpFacade;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,10 +23,8 @@ public class VolunteerHelpFacadeController {
      * 创建请求
      */
     @PostMapping("/api/volunteer/help/create")
-    public Result<Void> createHelpTask() {
-
-        volunteerHelpFacade.createAndDispatchHelp();
-        return Results.success();
+    public Result<TargetRoomLinkInfoRespDTO> createHelpTask() {
+        return Results.success(volunteerHelpFacade.createAndDispatchHelp());
     }
 
 }
