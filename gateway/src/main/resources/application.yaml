@@ -1,6 +1,8 @@
 server:
   port: 10000
 spring:
+  profiles:
+    active: local
   application:
     name: gateway
   datasource:
@@ -29,3 +31,14 @@ rocketmq:
     send-message-timeout: 2000
     retry-times-when-send-failed: 1
     retry-times-when-send-async-failed: 1
+suts:
+  ai:
+    # 1. 基础地址
+    api-host: https://api.deepseek.com
+    # 2. 你的 Key
+    api-key:
+    # 3. 模型代码
+    model-name: deepseek-chat
+    # 4. 其他设置
+    timeout: 60000
+    temperature: 0.5

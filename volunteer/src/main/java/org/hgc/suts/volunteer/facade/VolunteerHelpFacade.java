@@ -10,9 +10,9 @@ import org.hgc.suts.volunteer.dao.entity.ShortLinkHelpDO;
 import org.hgc.suts.volunteer.dto.req.ShortLinkHelpReqDTO;
 import org.hgc.suts.volunteer.dto.req.VolunteerMatchReqDTO;
 import org.hgc.suts.volunteer.dto.resp.ShortLinkHelpRespDTO;
+import org.hgc.suts.volunteer.dto.resp.TargetRoomLinkInfoRespDTO;
 import org.hgc.suts.volunteer.remote.ShortlinkRemoteService;
 import org.hgc.suts.volunteer.service.VolunteerMatchService;
-import org.hgc.suts.volunteer.service.VolunteerTaskService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -32,7 +32,7 @@ public class VolunteerHelpFacade {
     private String stuFrontDomain;
 
     // 核心编排方法
-    public void createAndDispatchHelp() {
+    public TargetRoomLinkInfoRespDTO createAndDispatchHelp() {
 
         // 创建房间
 
@@ -73,6 +73,9 @@ public class VolunteerHelpFacade {
                 log.info("发送短信成功，volunteerId:{}，短链接为: {}", volunteerId,shortlink);
             }
         }
-
+        return TargetRoomLinkInfoRespDTO.builder()
+                .targetRoomLink(targetRoomLink)
+                .authTicket(authTicket)
+                .build();
     }
 }
