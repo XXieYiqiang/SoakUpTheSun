@@ -1,0 +1,31 @@
+server:
+  port: 10000
+spring:
+  application:
+    name: gateway
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: redis
+      timeout: 50000
+  elasticsearch:
+    uris: http://localhost:9200
+    username: elastic
+    password: 123456
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: suts_gateway-service_common-message-execute_pg
+    send-message-timeout: 2000
+    retry-times-when-send-failed: 1
+    retry-times-when-send-async-failed: 1
