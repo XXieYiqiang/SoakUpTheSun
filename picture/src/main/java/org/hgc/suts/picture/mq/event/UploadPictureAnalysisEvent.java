@@ -26,4 +26,9 @@ public class UploadPictureAnalysisEvent {
      * 图片在 COS 中的 Key
      */
     private String imageKey;
+
+    /**
+     * 用户描述内容
+     */
+    String descriptionContent;
 }

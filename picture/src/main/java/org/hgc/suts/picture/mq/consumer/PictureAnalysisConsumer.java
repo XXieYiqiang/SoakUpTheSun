@@ -83,9 +83,15 @@ public class PictureAnalysisConsumer implements RocketMQListener<MessageWrapper<
 
             // 图片资源
             InputStreamResource pictureResource = new InputStreamResource(cosContent, FileUtil.getName(imageKey));
+            // 获取用户描述（可能为空）
+            String description = event.getDescriptionContent();
+            if (StrUtil.isBlank(description)) {
+                description = "请分析这张图片"; // 或给一个默认提示，比如 "请分析这张图片"
+            }
             // 2. 转发给 Python
             HttpResponse response = HttpRequest.post(aiApiUrl)
                     .form("file", pictureResource)
+                    .form("description", description)
                     .timeout(30000)
                     .execute();
 
