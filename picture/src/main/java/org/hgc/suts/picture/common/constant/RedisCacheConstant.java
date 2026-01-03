@@ -25,4 +25,9 @@ public class RedisCacheConstant {
      * 图片分析的结果
      */
     public static final String PICTURE_ANALYSIS_RESPONSE_KEY = "suts:picture:analysis:%s";
+
+    /**
+     * 分析图片视觉上下文key
+     */
+    public static final String GATEWAY_VISION_CONTEXT_KEY = "suts:gateway:vision:context:%s";
 }

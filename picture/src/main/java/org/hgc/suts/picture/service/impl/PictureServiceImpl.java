@@ -70,6 +70,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, PictureDO> im
                 .pictureId(uploadPictureRespDTO.getId())
                 .imageKey(uploadPictureRespDTO.getUrl())
                 .descriptionContent(uploadPictureAnalysisReqDTO.getDescriptionContent())
+                .userId(UserContext.getUserId())
                 .build();
         pictureAnalysisSendProducer.sendMessage(uploadPictureAnalysisEvent);
         return uploadPictureRespDTO;

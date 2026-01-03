@@ -8,6 +8,7 @@ import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.qcloud.cos.model.COSObject;
 import com.qcloud.cos.model.COSObjectInputStream;
 import lombok.RequiredArgsConstructor;
@@ -103,8 +104,22 @@ public class PictureAnalysisConsumer implements RocketMQListener<MessageWrapper<
             // 3. 存入 Redis
             String pictureAnalysisKey= String.format(RedisCacheConstant.PICTURE_ANALYSIS_RESPONSE_KEY,pictureId);
             stringRedisTemplate.opsForValue().set(pictureAnalysisKey, aiResultJson, 5, TimeUnit.MINUTES);
-            log.info("分析完成，结果已存入 Redis");
 
+            Long userId = event.getUserId();
+            log.info("分析完成，结果已存入 Redis中");
+            if (userId != null) {
+                String gatewayKey = String.format(RedisCacheConstant.GATEWAY_VISION_CONTEXT_KEY, userId);
+
+                // 构造带时间戳的 JSON，防止乱序覆盖
+                JSONObject cacheObj = new JSONObject();
+                cacheObj.put("text", aiResultJson);
+                // 使用当前系统时间作为处理时间戳
+                cacheObj.put("timestamp", System.currentTimeMillis());
+
+                // 直接存入 (Gateway 读取这个 Key 拿到结果)
+                stringRedisTemplate.opsForValue().set(gatewayKey, cacheObj.toJSONString(), 5, TimeUnit.MINUTES);
+                log.info("已同步给 Agent, User: {}", userId);
+            }
         } catch (Exception e) {
             log.error("消费失败", e);
             throw new RuntimeException("消费异常，重试", e);
