@@ -4,6 +4,7 @@ package org.hgc.suts.picture.controller;
 import lombok.RequiredArgsConstructor;
 import org.hgc.suts.picture.common.result.Result;
 import org.hgc.suts.picture.common.web.Results;
+import org.hgc.suts.picture.dto.req.UploadPictureAnalysisReqDTO;
 import org.hgc.suts.picture.dto.resp.UploadPictureRespDTO;
 import org.hgc.suts.picture.service.PictureService;
 import org.hgc.suts.picture.service.impl.PictureSpaceServiceImpl;
@@ -31,8 +32,8 @@ public class PictureController {
      * 分析图片
      */
     @PostMapping("/api/picture/uploadPictureAnalysis")
-    public Result<UploadPictureRespDTO> uploadPictureAnalysis(@RequestPart("file") MultipartFile multipartFile){
-        return Results.success(pictureService.uploadPictureAnalysis(multipartFile));
+    public Result<UploadPictureRespDTO> uploadPictureAnalysis(@RequestBody UploadPictureAnalysisReqDTO uploadPictureAnalysisReqDTO){
+        return Results.success(pictureService.uploadPictureAnalysis(uploadPictureAnalysisReqDTO));
     }
 
     /**

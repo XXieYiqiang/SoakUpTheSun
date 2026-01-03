@@ -16,6 +16,7 @@ import org.hgc.suts.picture.common.tensentCos.FilePictureUpload;
 import org.hgc.suts.picture.dao.entity.PictureDO;
 import org.hgc.suts.picture.dao.entity.PictureSpaceDO;
 import org.hgc.suts.picture.dao.mapper.PictureSpaceMapper;
+import org.hgc.suts.picture.dto.req.UploadPictureAnalysisReqDTO;
 import org.hgc.suts.picture.dto.resp.UploadPictureCosRespDTO;
 import org.hgc.suts.picture.dto.resp.UploadPictureRespDTO;
 import org.hgc.suts.picture.mq.event.UploadPictureAnalysisEvent;
@@ -30,10 +31,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Date;
 
 /**
-* @author 谢毅强
-* @description 针对表【t_picture(图片)】的数据库操作Service实现
-* @createDate 2025-12-16 14:38:07
-*/
+ * @author 谢毅强
+ * @description 针对表【t_picture(图片)】的数据库操作Service实现
+ * @createDate 2025-12-16 14:38:07
+ */
 @Service
 @RequiredArgsConstructor
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, PictureDO> implements PictureService {
@@ -58,16 +59,17 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, PictureDO> im
     }
 
     @Override
-    public UploadPictureRespDTO uploadPictureAnalysis(MultipartFile multipartFile) {
+    public UploadPictureRespDTO uploadPictureAnalysis(UploadPictureAnalysisReqDTO uploadPictureAnalysisReqDTO) {
 
-        if (multipartFile == null) {
+        if (uploadPictureAnalysisReqDTO.getMultipartFile() == null) {
             throw new ClientException("图片是空的，无法分析");
         }
 
-        UploadPictureRespDTO uploadPictureRespDTO = this.uploadPicture(multipartFile);
+        UploadPictureRespDTO uploadPictureRespDTO = this.uploadPicture(uploadPictureAnalysisReqDTO.getMultipartFile());
         UploadPictureAnalysisEvent uploadPictureAnalysisEvent = UploadPictureAnalysisEvent.builder()
                 .pictureId(uploadPictureRespDTO.getId())
                 .imageKey(uploadPictureRespDTO.getUrl())
+                .descriptionContent(uploadPictureAnalysisReqDTO.getDescriptionContent())
                 .build();
         pictureAnalysisSendProducer.sendMessage(uploadPictureAnalysisEvent);
         return uploadPictureRespDTO;
@@ -91,9 +93,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, PictureDO> im
         }
 
         // 预判空间是否足够，避免浪费 COS 上传流量
-         if (pictureSpaceDO.getTotalSize() + multipartFile.getSize() > pictureSpaceDO.getMaxSize()) {
-             throw new ClientException("空间容量不足");
-         }
+        if (pictureSpaceDO.getTotalSize() + multipartFile.getSize() > pictureSpaceDO.getMaxSize()) {
+            throw new ClientException("空间容量不足");
+        }
 
         // 上传图片，得到图片信息
         String uploadPathPrefix;
