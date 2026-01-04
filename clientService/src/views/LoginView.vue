@@ -1,159 +1,275 @@
 <template>
-    <div class="login-view-container">
-        <div class="tech-bg-overlay"></div>
+  <div class="login-view-container">
+    <div class="tech-bg-overlay"></div>
 
-        <div class="login-card-wrapper tech-dialog">
-            <div class="dialog-content-wrapper">
-                <h2 class="login-title">用户登录</h2>
-                <p class="login-subtitle">欢迎连接 Gim-Chat 智能终端</p>
+    <div class="login-card-wrapper tech-dialog">
+      <div class="dialog-content-wrapper">
+        <h2 class="login-title">用户登录</h2>
+        <p class="login-subtitle">欢迎连接 Gim-Chat 智能终端</p>
 
-                <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="tech-form">
-
-                    <el-form-item prop="phone">
-                        <el-input v-model="loginForm.phone" placeholder="请输入手机号" prefix-icon="el-icon-mobile-phone"
-                            class="tech-input"></el-input>
-                    </el-form-item>
-
-                    <el-form-item prop="passWord">
-                        <el-input v-model="loginForm.passWord" type="password" show-password placeholder="请输入密码"
-                            prefix-icon="el-icon-lock" class="tech-input"></el-input>
-                    </el-form-item>
-
-                    <el-form-item prop="captcha">
-                        <div class="captcha-item">
-                            <el-input v-model="loginForm.captcha" placeholder="请输入验证码" prefix-icon="el-icon-key"
-                                class="tech-input captcha-input"></el-input>
-                            <div class="captcha-img-box" @click="refreshCaptcha">
-                                <img :src="captchaUrl" alt="验证码" class="captcha-img" v-if="captchaUrl" />
-                                <div v-else class="captcha-placeholder">点击获取验证码</div>
-                            </div>
-                        </div>
-
-                    </el-form-item>
-
-                    <el-form-item class="login-action-item">
-                        <el-button type="primary" @click="submitLogin" class="tech-btn block-btn primary"
-                            :loading="isLoading">
-                            {{ isLoading ? '连接中...' : '登 录' }} <i class="el-icon-right"></i>
-                        </el-button>
-                    </el-form-item>
-
-                    <div class="extra-links">
-                        <el-button type="text" class="register-btn" @click="goToRegister">
-                            还没有账号？去注册 <i class="el-icon-arrow-right"></i>
-                        </el-button>
-                    </div>
-                </el-form>
+        <div class="voice-panel">
+          <div class="voice-btn-group">
+            <el-button 
+              :type="voice.active ? 'danger' : 'primary'" 
+              circle 
+              @click="toggleVoiceAssistant"
+              :class="{'pulse-red': voice.active}"
+              icon="el-icon-microphone"
+            ></el-button>
+            <div class="voice-status-text">
+              <span class="status-tag">{{ voice.isRunning ? 'LISTENING' : 'IDLE' }}</span>
+              <p class="tips">{{ voice.tips }}</p>
             </div>
+          </div>
+          <div v-if="voice.interimText" class="interim-display">
+            " {{ voice.interimText }} "
+          </div>
         </div>
+
+        <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="tech-form">
+          <el-form-item prop="userAccount">
+            <el-input v-model="loginForm.userAccount" placeholder="请输入用户账号" prefix-icon="el-icon-mobile-phone" class="tech-input"></el-input>
+          </el-form-item>
+
+          <el-form-item prop="password">
+            <el-input v-model="loginForm.password" type="password" show-password placeholder="请输入密码" prefix-icon="el-icon-lock" class="tech-input"></el-input>
+          </el-form-item>
+
+          <el-form-item class="login-action-item">
+            <el-button type="primary" @click="submitLogin" class="tech-btn block-btn primary" :loading="isLoading">
+              {{ isLoading ? '连接中...' : '登 录' }} <i class="el-icon-right"></i>
+            </el-button>
+          </el-form-item>
+
+          <div class="extra-links">
+            <el-button type="text" class="register-btn" @click="goToRegister">
+              还没有账号？去注册 <i class="el-icon-arrow-right"></i>
+            </el-button>
+          </div>
+        </el-form>
+      </div>
     </div>
+  </div>
 </template>
 
 <script>
-import { handleLogin, getPicturCode } from '@/api/user' // 确保路径正确
-import WebSocketService from '@/plugins/ws'; // 确保路径正确
-import Vue from 'vue'
-
-// 假设您有一个获取验证码图片的 API
-const CAPTCHA_API_BASE = '/api/getCaptchaImage?t='
+import { handleLogin } from '@/api/user'
 
 export default {
-    name: 'LoginView',
-    data() {
-        return {
-            isLoading: false, // 登录加载状态
-            captchaUrl: '', // 验证码图片URL
-            loginForm: {
-                phone: "",
-                passWord: "",
-                captcha: "", // 验证码字段
-            },
-            loginRules: {
-                phone: [
-                    { required: true, message: "请输入手机号", trigger: "blur" },
-                    {
-                        pattern: /^1[3-9]\d{9}$/,
-                        message: "请输入合法的手机号",
-                        trigger: "blur",
-                    },
-                ],
-                passWord: [{ required: true, message: "请输入密码", trigger: "blur" }],
-                captcha: [
-                    { required: true, message: "请输入验证码", trigger: "blur" },
-                    { min: 4, max: 6, message: "验证码长度不符", trigger: "blur" } // 假设长度是4-6位
-                ]
-            },
-        };
+  name: 'LoginView',
+  data() {
+    return {
+      isLoading: false,
+      loginForm: { userAccount: "", password: "" },
+      loginRules: {
+        userAccount: [{ required: true, message: "请输入用户名", trigger: "blur" }],
+        password: [{ required: true, message: "请输入密码", trigger: "blur" }],
+      },
+      // 🚀 语音助手状态对象
+      voice: {
+        active: false,      // 用户是否开启了助手
+        isRunning: false,   // 引擎是否物理运行中（锁）
+        stage: 'idle',      // 阶段：idle, account, password
+        tips: '点击图标开启语音登录',
+        interimText: '',
+        recognition: null
+      }
+    };
+  },
+  mounted() {
+    this.initVoiceEngine();
+  },
+  methods: {
+    initVoiceEngine() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        this.voice.tips = "浏览器不支持语音识别";
+        return;
+      }
+      this.voice.recognition = new SpeechRecognition();
+      this.voice.recognition.lang = 'zh-CN';
+      this.voice.recognition.interimResults = true;
+      this.voice.recognition.continuous = false; // 采用手动维护重连，比原生 continuous 更稳
+
+      // 启动成功回调
+      this.voice.recognition.onstart = () => {
+        this.voice.isRunning = true;
+        console.log("Speech Engine: Started");
+      };
+
+      // 识别结果回调
+      this.voice.recognition.onresult = (event) => {
+        let result = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          result += event.results[i][0].transcript;
+        }
+        this.voice.interimText = result;
+
+        // 只有当识别结束（停顿）时才处理结果
+        if (event.results[event.results.length - 1].isFinal) {
+          const finalResult = result.replace(/[。\s]/g, '');
+          this.processVoiceCommand(finalResult);
+        }
+      };
+
+      // 错误处理回调
+      this.voice.recognition.onerror = (event) => {
+        console.error("Speech Engine Error:", event.error);
+        if (event.error === 'no-speech') {
+          this.voice.tips = "没听清，请再说一遍...";
+        }
+        // 注意：报错后浏览器会自动触发 onend
+      };
+
+      // 停止回调（核心锁控制）
+      this.voice.recognition.onend = () => {
+        this.voice.isRunning = false;
+        console.log("Speech Engine: Stopped");
+        
+        // 如果用户没关助手且没录完，自动重启引擎
+        if (this.voice.active && this.voice.stage !== 'done') {
+          this.safeStart();
+        }
+      };
     },
-    mounted() {
-        // this.refreshCaptcha(); // 组件挂载时获取初始验证码
+
+    // 🚀 安全启动：解决 InvalidStateError
+    safeStart() {
+      if (this.voice.isRunning) return; 
+      try {
+        this.voice.recognition.start();
+      } catch (e) {
+        console.warn("Speech start conflict prevented.");
+      }
     },
-    methods: {
-        // 刷新验证码图片
-        async refreshCaptcha() {
-            const param = {
-                ...this.loginForm
-            }
 
-            const resData = await getPicturCode(param)
-
-            if (resData && resData.data && resData.data.code === 200) {
-
-                console.log('resData.data.data.captcha', resData.data.data)
-
-                this.captchaUrl = 'data:image/png;base64,' + resData.data.data.img
-
-
-                console.log('this.captchaUrl', this.captchaUrl)
-            }else{
-
-                this.$message.error(resData.data.message)
-            }
-
-        },
-        // 跳转到注册页面
-        goToRegister() {
-            this.$router.push({ name: 'register' });
-        },
-        async submitLogin() {
-            const that = this
-            this.$refs.loginForm.validate(async (valid) => {
-                if (valid) {
-                    this.isLoading = true; // 开始加载
-                    const param = { ...this.loginForm }
-                    try {
-                        // ⚠️ 假设 handleLogin 返回的数据结构为 { data: { code: 200, data: { token: '...', userInfo: {} }, message: '...' } }
-                        const res = await handleLogin(param);
-                        const data = res.data.data;
-                        if (res.data.code === 200 && data.token) {
-                            const token = data.token;
-                            const user = data.userInfo;
-                            that.$store.dispatch('user/login', {
-                                token,
-                                userInfo: user
-                            });
-                            that.$message.success('连接成功，欢迎回来');
-                            // 登录成功后跳转到首页
-                            this.$router.push({ name: 'index' });
-                        } else {
-                            that.$message.error(res.data.message || '登录失败');
-                            this.refreshCaptcha(); // 登录失败，刷新验证码
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        that.$message.error('网络错误或服务异常');
-                        this.refreshCaptcha(); // 发生错误，刷新验证码
-                    } finally {
-                        this.isLoading = false; // 结束加载
-                    }
-                }
-            });
-        },
+    speak(text) {
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = 'zh-CN';
+      window.speechSynthesis.speak(msg);
     },
+
+    toggleVoiceAssistant() {
+      if (this.voice.active) {
+        this.voice.active = false;
+        this.voice.stage = 'idle';
+        this.voice.tips = '语音助手已关闭';
+        this.voice.recognition.stop();
+      } else {
+        this.voice.active = true;
+        this.voice.stage = 'account';
+        this.voice.tips = '请说出您的账号';
+        this.speak("语音助手已就绪，请告诉我您的账号");
+        this.safeStart();
+      }
+    },
+
+    processVoiceCommand(text) {
+      if (this.voice.stage === 'account') {
+        this.loginForm.userAccount = text;
+        this.voice.stage = 'password';
+        this.voice.tips = '账号录入成功，请说密码';
+        this.speak("收到，请输入密码");
+      } else if (this.voice.stage === 'password') {
+        this.loginForm.password = text;
+        this.voice.stage = 'done';
+        this.voice.tips = '识别完成，连接终端...';
+        this.speak("正在连接，请稍后");
+        this.submitLogin();
+      }
+    },
+
+    async submitLogin() {
+      this.$refs.loginForm.validate(async (valid) => {
+        if (!valid) return;
+        this.isLoading = true;
+        try {
+          const res = await handleLogin(this.loginForm);
+          if (res.data.success && res.data.code === '0') {
+            this.speak("连接成功");
+            this.$store.dispatch('user/login', res.data.data);
+            this.$router.push({ name: 'index' });
+          } else {
+            this.speak("登录失败，" + res.data.message);
+            this.voice.stage = 'account'; // 失败则重回到账号录入
+            this.voice.active = true;
+            this.safeStart();
+          }
+        } catch (e) {
+          this.$message.error('网络超时，服务器内存压力过大');
+        } finally {
+          this.isLoading = false;
+          if (this.voice.stage === 'done') this.voice.active = false;
+        }
+      });
+    },
+    goToRegister() { this.$router.push({ name: 'register' }); }
+  }
 };
 </script>
 
 <style lang="less" scoped>
+.voice-panel {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 242, 255, 0.2);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 25px;
+    text-align: left;
+
+    .voice-btn-group {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .voice-status-text {
+        .status-tag {
+            font-size: 10px;
+            background: #00f2ff;
+            color: #000;
+            padding: 1px 4px;
+            font-weight: bold;
+            border-radius: 2px;
+        }
+
+        .tips {
+            margin: 5px 0 0;
+            color: #00f2ff;
+            font-size: 13px;
+        }
+    }
+
+    .interim-display {
+        margin-top: 10px;
+        font-style: italic;
+        color: #94a3b8;
+        font-size: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding-top: 5px;
+    }
+}
+
+.pulse-red {
+    animation: pulse-red-animation 1.5s infinite;
+    background: #ff4949 !important;
+    border-color: #ff4949 !important;
+}
+
+@keyframes pulse-red-animation {
+    0% {
+        box-shadow: 0 0 0 0px rgba(255, 73, 73, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 15px rgba(255, 73, 73, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0px rgba(255, 73, 73, 0);
+    }
+}
+
 /* ================= 变量定义 (从 App.vue 复制) ================= */
 @bg-dark: #0f1219;
 @primary-color: #00f2ff;

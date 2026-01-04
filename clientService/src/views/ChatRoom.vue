@@ -75,10 +75,10 @@ export default {
   name: "SFURoom",
   data() {
     return {
-      wsUrl: "ws://192.168.43.143:8080/room/join",
-      roomID: "2jcfZY1wsrddK5D2g3Np1z",
+      wsUrl: "ws://127.0.0.1:10014/room/join",
+      roomID: "SwBPff6PZq4BixUoiZpufa",
       uid: "user_" + Math.floor(Math.random() * 10000),
-      tokenInfo: 'tokenInfo',
+      tokenInfo: '0e9a64fcff934802b92a4d254895917d',
 
       joined: false,
       loading: false,
@@ -113,7 +113,7 @@ export default {
   },
   mounted() {
     // 获取跳转时传入的 roomID 和 token
-    const roomID = this.$route.params.roomID;
+    const roomID = this.$route.params.roomId;
     const tokenInfo = this.$route.params.token;
 
     console.log('当前房间ID:', roomID);
@@ -122,6 +122,8 @@ export default {
     if (roomID && tokenInfo) {
       this.roomID = roomID;
       this.tokenInfo = tokenInfo;
+
+      this.joinRoom()
     } else {
       console.error('参数丢失，无法进入聊天室');
     }
@@ -155,7 +157,7 @@ export default {
     },
 
     connectWS() {
-      const url = `${this.wsUrl}?roomID=${this.roomID}&uid=${this.uid}`;
+      const url = `${this.wsUrl}?roomID=${this.roomID}&uid=${this.uid}&roomToken=${encodeURIComponent(this.tokenInfo)}`;
       this.ws = new WebSocket(url);
       this.ws.onopen = () => {
         this.joined = true;
@@ -248,13 +250,59 @@ export default {
         setTimeout(() => this.tryProcessOffer(), 0);
       }
     },
+    // async tryProcessOffer() {
+    //   // 如果正在协商或队列为空，直接返回
+    //   if (this.negotiating || this.offerQueue.length === 0) return;
+
+    //   this.negotiating = true;
+    //   const { sdp, from } = this.offerQueue.shift();
+    //   this.currentProcessingFrom = from; // 记录当前是谁的流
+
+    //   try {
+    //     this.initDownPC();
+
+    //     // 1. 设置远端描述
+    //     await this.downPC.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+    //     this.log("setRemoteDescription 成功");
+
+    //     // 2. 处理在 setRemoteDescription 之前收到的所有候选者
+    //     while (this.pendingCandidates.length > 0) {
+    //       const cand = this.pendingCandidates.shift();
+    //       await this.downPC.addIceCandidate(new RTCIceCandidate(cand)).catch(e =>
+    //         console.warn("添加积压候选者失败", e)
+    //       );
+    //     }
+
+    //     // 3. 创建 Answer
+    //     const answer = await this.downPC.createAnswer();
+    //     await this.downPC.setLocalDescription(answer);
+
+    //     // 4. 发送 Answer
+    //     this.sendSignal("down_answer", { sdp: answer.sdp });
+
+    //   } catch (err) {
+    //     console.error("协商循环出错:", err);
+    //   } finally {
+    //     this.negotiating = false;
+    //     // 🔴 关键：处理完当前这个，立即检查队列是否还有更新的 Offer (比如新增了视频轨道)
+    //     if (this.offerQueue.length > 0) {
+    //       this.tryProcessOffer();
+    //     }
+    //   }
+    // },
 
     async handleDownCandidate(cand) {
-      if (!this.downPC || !this.downPC.remoteDescription) {
+      // ✅ 严格检查：如果没有 PC，或者 PC 还没设置好远端 SDP，就必须缓存
+      if (!this.downPC || !this.downPC.remoteDescription || !this.downPC.remoteDescription.type) {
         this.pendingCandidates.push(cand);
         return;
       }
-      try { await this.downPC.addIceCandidate(new RTCIceCandidate(cand)); } catch { }
+
+      try {
+        await this.downPC.addIceCandidate(new RTCIceCandidate(cand));
+      } catch (e) {
+        console.warn("添加 Candidate 失败，可能连接已关闭", e);
+      }
     },
 
     removeRemote(uid) {

@@ -1,5 +1,5 @@
 
-const TokenKey = 'Token'
+const TokenKey = 'token'
 const TokenTypeKey = 'Token-Type'
 const FreshTokenKey = 'Fresh-Token'
 const Userinfo = 'userinfo'
@@ -8,7 +8,7 @@ const ConnectedBluetooth = 'connectedBluetooth'
 
 
 export function getToken () {
-  return localStorage.getItem(TokenKey) || 'eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJxaXdlbi1jbXMiLCJleHAiOjE3NTM3NDY5NjksInN1YiI6IntcInVzZXJJZFwiOlwiMVwifSIsImF1ZCI6InFpd2Vuc2hhcmUiLCJpYXQiOjE3NTMxNDIxNjl9.PfnqBB9jAyAMio2k3vpBKHBbGC8ja7dyudrjCVqx0Qc'
+  return localStorage.getItem(TokenKey)
 }
 export function setToken (token) {
   return localStorage.setItem(TokenKey, token) 

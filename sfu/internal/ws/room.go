@@ -5,8 +5,6 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
-	"github.com/pion/webrtc/v4"
 )
 
 // UserRole 用户角色
@@ -25,35 +23,16 @@ var (
 // Room 代表一个会议室，包含所有用户和他们发布的轨道
 type Room struct {
 	ID     string
-	Users  map[string]*User       // UID -> User
-	Tracks map[string]*UserTracks // Publisher UID -> UserTracks
+	Users  map[string]*Peer       // UID -> Peer
+	Tracks map[string]*PeerTracks // Publisher UID -> PeerTracks
 	Mu     sync.RWMutex           // 保护 Users 和 Tracks
-}
-
-// User 代表一个连接到 SFU 的客户端
-type User struct {
-	UID              string
-	WS               *websocket.Conn
-	UpPC             *webrtc.PeerConnection    // 上行 PC (Publisher)
-	DownPC           *webrtc.PeerConnection    // 下行 PC (Subscriber)
-	Role             UserRole                  // 用户角色
-	mu               sync.Mutex                // 保护 UpPC, DownPC, closed
-	wsMu             sync.Mutex                // 保护 WS 写入操作
-	UpCandidateQueue []webrtc.ICECandidateInit // 新增：用于缓冲在上行 Offer 之前到达的 ICE Candidate
-	candidateMu      sync.Mutex                // 新增锁来保护 UpCandidateQueue，
-}
-
-// UserTracks 存储用户发布的本地轨道
-type UserTracks struct {
-	Audio *webrtc.TrackLocalStaticRTP
-	Video *webrtc.TrackLocalStaticRTP
 }
 
 func NewRoom() *Room {
 	r := &Room{
 		ID:     base58x.UUIDToBase58(uuid.New()),
-		Users:  make(map[string]*User),
-		Tracks: make(map[string]*UserTracks),
+		Users:  make(map[string]*Peer),
+		Tracks: make(map[string]*PeerTracks),
 	}
 	RoomsMu.Lock()
 	Rooms[r.ID] = r

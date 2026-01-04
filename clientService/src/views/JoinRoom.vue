@@ -24,8 +24,8 @@ export default {
       errorTip: '',
       
       // 用户数据
-      userName: '',
-      userAge: ''
+      roomId: '',
+      tokenInfo: ''
     };
   },
   mounted() {
@@ -39,16 +39,16 @@ export default {
       const query = this.$route.query;
       
       // 1. 获取并清理参数
-      this.userName = this.cleanParam(query.name);
-      this.userAge = this.cleanParam(query.age);
+      this.roomId = this.cleanParam(query.room);
+      this.token = this.cleanParam(query.token);
 
-      console.log('解析到的数据:', { name: this.userName, age: this.userAge });
+      console.log('解析到的数据:', { name: this.roomId, age: this.token });
 
       // 2. 校验逻辑
-      if (!this.userName || this.userName === 'undefined') {
-        this.showError('未检测到有效的用户名信息');
-        return;
-      }
+      // if (!this.roomId || this.userName === 'undefined') {
+      //   this.showError('未检测到有效的用户名信息');
+      //   return;
+      // }
 
       // 3. 模拟请求后端接口进行验证
       this.handleVerify();
@@ -77,8 +77,8 @@ export default {
           this.$router.replace({
             name: 'chatRoom',
             params: {
-              roomID: 'R123', 
-              token: 'TK456'  
+              roomId: this.roomId, 
+              token: this.token 
             }
           });
         }, 5000);

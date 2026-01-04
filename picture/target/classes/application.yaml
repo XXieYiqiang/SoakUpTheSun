@@ -1,0 +1,40 @@
+server:
+  port: 10010
+spring:
+  application:
+    name: picture
+  datasource:
+    url: jdbc:mysql://47.120.60.61:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    username: suts
+    password: 123456
+  data:
+    redis:
+      host: 47.120.60.61
+      port: 6379
+      password: 123456
+      timeout: 50000
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+
+cos:
+  client:
+    host: https://yunku-1387421470.cos.ap-beijing.myqcloud.com
+    secretId: AKIDDIApGTTHuKWUEl4A9xd8QULyNYcT6Vgd
+    secretKey: oRt89wXw8D6mIsIWYOr7B2qUzNYVFwgM
+    region: ap-beijing
+    bucket: yunku-1387421470
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: suts_Volunteer-service_common-message-execute_pg
+    send-message-timeout: 2000
+    retry-times-when-send-failed: 1
+    retry-times-when-send-async-failed: 1
+
+#http://localhost:10010/doc.html
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
