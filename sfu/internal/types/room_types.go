@@ -26,6 +26,11 @@ type SaveRoomResp struct {
 	Token  string `json:"token"`
 }
 
+// GetRoomInfoReq 获取房间信息请求
+type GetRoomInfoReq struct {
+	RoomID string `uri:"roomID"`
+}
+
 // GetRoomInfoResp 获取房间信息响应
 type GetRoomInfoResp struct {
 	RoomID   string `json:"roomID"`   // 房间号

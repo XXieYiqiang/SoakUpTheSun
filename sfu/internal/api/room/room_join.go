@@ -42,7 +42,7 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 	}
 
 	// TODO 获取志愿者用户信息
-	user := &ws.User{
+	user := &ws.Peer{
 		UID:  uuid.New().String(),
 		WS:   conn,
 		Role: ws.RoleVolunteer,

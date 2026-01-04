@@ -29,8 +29,8 @@ func NewInfoRoomLogic(ctx context.Context, app *app.App) *InfoRoomLogic {
 	}
 }
 
-func (i *InfoRoomLogic) InfoRoom(roomID string) (*types.GetRoomInfoResp, error) {
-	roomModel, err := gorm.G[model.Room](i.db).Where("uid = ? AND status != ?", roomID, model.RoomStatusClosed).First(i.ctx)
+func (i *InfoRoomLogic) InfoRoom(req *types.GetRoomInfoReq) (*types.GetRoomInfoResp, error) {
+	roomModel, err := gorm.G[model.Room](i.db).Where("uid = ? AND status != ?", req.RoomID, model.RoomStatusClosed).First(i.ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("房间不存在")
@@ -43,7 +43,7 @@ func (i *InfoRoomLogic) InfoRoom(roomID string) (*types.GetRoomInfoResp, error) 
 		return nil, fmt.Errorf("房间已满")
 	}
 
-	room, ok := ws.GetRoom(roomID)
+	room, ok := ws.GetRoom(req.RoomID)
 	if !ok {
 		if _, err = gorm.G[model.Room](i.db).Update(i.ctx, "status", model.RoomStatusClosed); err != nil {
 			logger.Log.Error("更新房间状态失败", zap.Error(err))
