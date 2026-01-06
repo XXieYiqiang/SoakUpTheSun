@@ -1,10 +1,9 @@
-package logic
+package room
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"sfu/internal/app"
 	"sfu/internal/cache"
 	"sfu/internal/logger"
 	"sfu/internal/model"
@@ -15,65 +14,59 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-// RoomLogic 房间逻辑层
-type SaveRoomLogic struct {
-	ctx context.Context
-	db  *gorm.DB
-	rds *redis.Client
-}
-
-func NewSaveRoomLogic(ctx context.Context, app *app.App) *SaveRoomLogic {
-	return &SaveRoomLogic{
-		ctx: ctx,
-		db:  app.DB,
-		rds: app.Redis,
-	}
-}
-
 // SaveRoom 创建房间
-func (r *SaveRoomLogic) SaveRoom(userToken string) (*types.SaveRoomResp, error) {
+func (r *RoomLogic) SaveRoom(userToken string) (*types.SaveRoomResp, error) {
 	userInfo, err := r.getUserInfoByToken(r.ctx, userToken)
 	if err != nil {
 		logger.Log.Error("获取用户信息失败", zap.Error(err))
 		return nil, errors.New("获取用户信息失败")
 	}
-	room := ws.NewRoom()
-	if room == nil {
+
+	// 查询当前患者是否有正在进行的房间
+	_, err = gorm.G[model.Room](r.db).Where("patient_id = ? AND status = ?", userInfo.ID, model.RoomStatusActive).Take(r.ctx)
+	if err == nil {
+		return nil, errors.New("存在正在进行的房间,请先关闭房间")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Log.Error("获取房间失败", zap.Error(err))
+		return nil, errors.New("获取房间失败")
+	}
+
+	_room := ws.NewRoom()
+	if _room == nil {
 		logger.Log.Error("创建房间失败")
 		return nil, errors.New("创建房间失败")
 	}
 	// 生成房间令牌
-	roomToken, err := r.setRoomToken(r.ctx, room.ID, userInfo.ID)
+	roomToken, err := r.setRoomToken(r.ctx, _room.ID, userInfo.ID)
 	if err != nil {
-		ws.DeleteRoom(room.ID)
+		ws.DeleteRoom(_room.ID)
 		logger.Log.Error("生成房间令牌失败", zap.Error(err))
 		return nil, errors.New("创建房间失败")
 	}
 	// 创建房间
 	if err := r.db.Create(&model.Room{
 		Name:        fmt.Sprintf("%s的房间", userInfo.Username),
-		PatientID:   int64(userInfo.ID),
+		PatientID:   userInfo.ID,
 		PatientName: userInfo.Username,
-		UID:         room.ID,
+		UID:         _room.ID,
 	}).Error; err != nil {
-		ws.DeleteRoom(room.ID)
+		ws.DeleteRoom(_room.ID)
 		logger.Log.Error("创建房间失败", zap.Error(err))
 		return nil, errors.New("创建房间失败")
 	}
 
 	return &types.SaveRoomResp{
-		RoomID: room.ID,
+		RoomID: _room.ID,
 		Token:  roomToken,
 	}, nil
 }
 
 // 设置房间令牌至redis
-func (s *SaveRoomLogic) setRoomToken(ctx context.Context, roomUID string, userID uint64) (string, error) {
+func (s *RoomLogic) setRoomToken(ctx context.Context, roomUID string, userID uint64) (string, error) {
 
 	token := strings.ReplaceAll(uuid.New().String(), "-", "")
 
@@ -98,7 +91,7 @@ func (s *SaveRoomLogic) setRoomToken(ctx context.Context, roomUID string, userID
 }
 
 // 根据token令牌从redis获取用户信息
-func (s *SaveRoomLogic) getUserInfoByToken(ctx context.Context, token string) (*types.CacheUserInfo, error) {
+func (s *RoomLogic) getUserInfoByToken(ctx context.Context, token string) (*types.CacheUserInfo, error) {
 	tokenToUserCacheKey := cache.USER_LOGIN_KEY_TOKEN_TO_USER + token
 	userStr, err := s.rds.Get(ctx, tokenToUserCacheKey).Result()
 	if err != nil {

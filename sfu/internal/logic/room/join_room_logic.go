@@ -1,35 +1,21 @@
-package logic
+package room
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"sfu/internal/app"
 	"sfu/internal/cache"
 	"sfu/internal/logger"
+	"sfu/internal/model"
 	"sfu/internal/types"
 	"sfu/internal/ws"
 
 	"github.com/bytedance/sonic"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-type JoinRoomLogic struct {
-	ctx context.Context
-	db  *gorm.DB
-	rds *redis.Client
-}
-
-func NewJoinRoomLogic(ctx context.Context, app *app.App) *JoinRoomLogic {
-	return &JoinRoomLogic{
-		ctx: ctx,
-		db:  app.DB,
-		rds: app.Redis,
-	}
-}
-
-func (j *JoinRoomLogic) JoinRoom(roomToken, roomID string) (*ws.Room, error) {
+func (j *RoomLogic) JoinRoom(roomToken, roomID string) (*ws.Room, error) {
 	// 获取房间token信息
 	roomTokenInfo, err := j.getRoomTokenInfo(j.ctx, roomToken)
 	if err != nil {
@@ -41,22 +27,32 @@ func (j *JoinRoomLogic) JoinRoom(roomToken, roomID string) (*ws.Room, error) {
 		return nil, fmt.Errorf("房间不匹配")
 	}
 
-	room, ok := ws.GetRoom(roomID)
+	_room, ok := ws.GetRoom(roomID)
 	if !ok {
 		logger.Log.Error("房间不存在")
 		return nil, fmt.Errorf("房间不存在")
 	}
 	// 房间最多3人,1个患者和2个志愿者
 	// TODO 可以读取房间角色判断是否满人
-	currentNum := len(room.Users)
+	currentNum := len(_room.Users)
 	if currentNum+1 > 3 {
 		return nil, fmt.Errorf("房间已满")
 	}
 
-	return room, nil
+	// TODO 判断加入患者或志愿者
+	if err := gorm.G[model.RoomMember](j.db).Create(j.ctx, &model.RoomMember{
+		RoomUID: roomID,
+		UserID:  12345,
+		Role:    "volunteer",
+	}); err != nil {
+		logger.Log.Error("加入房间失败", zap.Error(err))
+		return nil, errors.New("加入房间失败")
+	}
+
+	return _room, nil
 }
 
-func (j *JoinRoomLogic) getRoomTokenInfo(ctx context.Context, roomToken string) (*types.RoomPreload, error) {
+func (j *RoomLogic) getRoomTokenInfo(ctx context.Context, roomToken string) (*types.RoomPreload, error) {
 	roomTokenKey := cache.ROOM_TOKEN_KEY + roomToken
 	roomTokenInfoStr, err := j.rds.Get(ctx, roomTokenKey).Result()
 	if err != nil {

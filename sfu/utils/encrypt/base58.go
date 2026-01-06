@@ -1,4 +1,4 @@
-package base58x
+package encrypt
 
 import (
 	"fmt"

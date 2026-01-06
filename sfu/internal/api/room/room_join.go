@@ -27,14 +27,13 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 		return
 	}
 
-	logic := roomLogic.NewJoinRoomLogic(c.Request.Context(), r.App)
+	logic := roomLogic.NewRoomLogic(c.Request.Context(), r.App)
 	room, err := logic.JoinRoom(roomToken, roomID)
 	if err != nil {
 		res.Failed(c, err.Error())
 		return
 	}
 
-	// 升级websocket
 	conn, err := ws.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		logger.Log.Error("创建websocket连接失败", zap.Error(err))

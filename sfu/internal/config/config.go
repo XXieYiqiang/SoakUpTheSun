@@ -3,7 +3,9 @@ package config
 import (
 
 	// _ "embed"
-	"log"
+	"bytes"
+	"fmt"
+	"os"
 
 	"github.com/spf13/viper"
 )
@@ -20,18 +22,26 @@ type Config struct {
 }
 
 // InitConfig 初始化配置文件
-func InitConfig() *Config {
-	var conf *Config
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("read config file failed: %v", err)
+func LoadConfig[T any](path string) (*T, error) {
+	v := viper.New()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read config file failed: %w", err)
 	}
-	if err := viper.Unmarshal(&conf); err != nil {
-		log.Fatalf("unmarshal config file failed: %v", err)
+
+	v.SetConfigType("yaml") // 或根据扩展名判断
+
+	if err := v.ReadConfig(bytes.NewBuffer(content)); err != nil {
+		return nil, fmt.Errorf("read config failed: %w", err)
 	}
-	return conf
+
+	var cfg T
+	if err := v.Unmarshal(&cfg); err != nil {
+		return nil, fmt.Errorf("unmarshal config failed: %w", err)
+	}
+
+	return &cfg, nil
 }
 
 // InitConfigByEmbed 初始化配置文件（从 embed 读取默认配置）

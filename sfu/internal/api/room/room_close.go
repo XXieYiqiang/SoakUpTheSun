@@ -17,7 +17,7 @@ func (r *RoomApi) CloseRoom(c *gin.Context) {
 		return
 	}
 
-	logic := roomLogic.NewCloseRoomLogic(c.Request.Context(), r.App)
+	logic := roomLogic.NewRoomLogic(c.Request.Context(), r.App)
 	if err := logic.CloseRoom(req); err != nil {
 		res.Failed(c, err.Error())
 		return

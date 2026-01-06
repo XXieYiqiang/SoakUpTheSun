@@ -11,13 +11,13 @@ import (
 
 // GetRoomInfo 获取房间信息
 func (r *RoomApi) GetRoomInfo(c *gin.Context) {
-	room, err := bind.BindUri[types.GetRoomInfoReq](c)
+	req, err := bind.BindUri[types.GetRoomInfoReq](c)
 	if err != nil {
-		res.Failed(c, "请输入房间号")
+		res.Failed(c, "非法参数")
 		return
 	}
-	logic := roomLogic.NewInfoRoomLogic(c.Request.Context(), r.App)
-	resp, err := logic.InfoRoom(room)
+	logic := roomLogic.NewRoomLogic(c.Request.Context(), r.App)
+	resp, err := logic.InfoRoom(req)
 	if err != nil {
 		res.Failed(c, err.Error())
 		return

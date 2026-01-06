@@ -1,10 +1,10 @@
 package ws
 
 import (
-	"sfu/utils/base58x"
+	"fmt"
+	"hash/fnv"
+	"sfu/utils/snowflakex"
 	"sync"
-
-	"github.com/google/uuid"
 )
 
 // UserRole 用户角色
@@ -30,7 +30,7 @@ type Room struct {
 
 func NewRoom() *Room {
 	r := &Room{
-		ID:     base58x.UUIDToBase58(uuid.New()),
+		ID:     GenerateRoomID(),
 		Users:  make(map[string]*Peer),
 		Tracks: make(map[string]*PeerTracks),
 	}
@@ -54,4 +54,20 @@ func DeleteRoom(id string) {
 	RoomsMu.Lock()
 	delete(Rooms, id)
 	RoomsMu.Unlock()
+}
+
+const (
+	roomMod = 1_000_000_000 // 9 位
+)
+
+// GenerateRoomID 生成 9 位会议房间号
+func GenerateRoomID() string {
+	sf := snowflakex.Generate().Int64()
+
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(fmt.Sprintf("%d", sf)))
+
+	roomID := h.Sum64() % roomMod
+
+	return fmt.Sprintf("%09d", roomID)
 }
