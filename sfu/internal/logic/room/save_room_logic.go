@@ -27,7 +27,7 @@ func (r *RoomLogic) SaveRoom(userToken string) (*types.SaveRoomResp, error) {
 	}
 
 	// 查询当前患者是否有正在进行的房间
-	_, err = gorm.G[model.Room](r.db).Where("patient_id = ? AND status = ?", userInfo.ID, model.RoomStatusActive).Take(r.ctx)
+	_, err = gorm.G[model.Room](r.db).Where("patient_id = ? AND status = ?", userInfo.ID, model.RoomStatusActive).First(r.ctx)
 	if err == nil {
 		return nil, errors.New("存在正在进行的房间,请先关闭房间")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -52,6 +52,7 @@ func (r *RoomLogic) SaveRoom(userToken string) (*types.SaveRoomResp, error) {
 		Name:        fmt.Sprintf("%s的房间", userInfo.Username),
 		PatientID:   userInfo.ID,
 		PatientName: userInfo.Username,
+		RoomToken:   roomToken,
 		UID:         _room.ID,
 	}).Error; err != nil {
 		ws.DeleteRoom(_room.ID)
@@ -73,7 +74,7 @@ func (s *RoomLogic) setRoomToken(ctx context.Context, roomUID string, userID uin
 	preload := types.RoomPreload{
 		RoomID: roomUID,
 		UserID: int64(userID),
-		Role:   "patient",
+		Role:   string(ws.RolePatient),
 	}
 
 	val, err := sonic.MarshalString(preload)
@@ -83,10 +84,10 @@ func (s *RoomLogic) setRoomToken(ctx context.Context, roomUID string, userID uin
 
 	key := cache.ROOM_TOKEN_KEY + token
 
-	if err := s.rds.SetNX(ctx, key, val, 10*time.Minute).Err(); err != nil {
-		return "", fmt.Errorf("设置房间令牌失败: %w", err)
+	// TODO 后期需增加房间过期时间
+	if err := s.rds.Set(ctx, key, val, 0).Err(); err != nil {
+		return "", fmt.Errorf("设置房间tolen失败: %w", err)
 	}
-
 	return token, nil
 }
 

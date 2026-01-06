@@ -28,7 +28,7 @@ type SaveRoomResp struct {
 
 // GetRoomInfoReq 获取房间信息请求
 type GetRoomInfoReq struct {
-	RoomID string `uri:"roomID"`
+	RoomToken string `uri:"roomToken"`
 }
 
 // GetRoomInfoResp 获取房间信息响应

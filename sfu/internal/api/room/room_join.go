@@ -1,7 +1,6 @@
 package room
 
 import (
-	"fmt"
 	"sfu/internal/logger"
 	roomLogic "sfu/internal/logic/room"
 	"sfu/internal/model/res"
@@ -20,7 +19,6 @@ func (r *RoomApi) JoinRoom(c *gin.Context) {
 		return
 	}
 	roomToken := c.Query("roomToken")
-	fmt.Println("roomToken=", roomToken)
 	if roomToken == "" {
 		res.Failed(c, "您没有该房间权限")
 		logger.Log.Error("没有该房间权限")

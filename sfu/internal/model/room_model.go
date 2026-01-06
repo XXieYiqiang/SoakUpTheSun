@@ -9,6 +9,7 @@ type Room struct {
 	PatientID   uint64       `gorm:"column:patient_id;type:bigint;not null;comment:患者id"`
 	PatientName string       `gorm:"column:patient_name;type:varchar(50);not null;comment:患者名称"`
 	UID         string       `gorm:"column:uid;type:varchar(50);not null;uniqueIndex;comment:房间唯一标识(uuid),即房间号"`
+	RoomToken   string       `gorm:"column:room_token;type:varchar(50);not null;uniqueIndex;comment:房间token"`
 	Status      string       `gorm:"column:status;type:varchar(20);not null;default:'active';comment:房间状态(active-开启中/full-已满/closed-已关闭)"`
 	RoomMembers []RoomMember `gorm:"-:migration;foreignKey:RoomUID;references:UID"` // 房间成员
 }
