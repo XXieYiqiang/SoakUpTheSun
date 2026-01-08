@@ -26,6 +26,8 @@ import org.hgc.suts.picture.dao.mapper.PictureMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Date;
@@ -59,17 +61,17 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, PictureDO> im
     }
 
     @Override
-    public UploadPictureRespDTO uploadPictureAnalysis(UploadPictureAnalysisReqDTO uploadPictureAnalysisReqDTO) {
+    public UploadPictureRespDTO uploadPictureAnalysis(MultipartFile multipartFile, String descriptionContent) {
 
-        if (uploadPictureAnalysisReqDTO.getMultipartFile() == null) {
+        if (multipartFile == null) {
             throw new ClientException("图片是空的，无法分析");
         }
 
-        UploadPictureRespDTO uploadPictureRespDTO = this.uploadPicture(uploadPictureAnalysisReqDTO.getMultipartFile());
+        UploadPictureRespDTO uploadPictureRespDTO = this.uploadPicture(multipartFile);
         UploadPictureAnalysisEvent uploadPictureAnalysisEvent = UploadPictureAnalysisEvent.builder()
                 .pictureId(uploadPictureRespDTO.getId())
                 .imageKey(uploadPictureRespDTO.getUrl())
-                .descriptionContent(uploadPictureAnalysisReqDTO.getDescriptionContent())
+                .descriptionContent(descriptionContent)
                 .userId(UserContext.getUserId())
                 .build();
         pictureAnalysisSendProducer.sendMessage(uploadPictureAnalysisEvent);

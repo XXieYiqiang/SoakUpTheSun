@@ -4,6 +4,8 @@ import org.hgc.suts.picture.dao.entity.PictureDO;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.hgc.suts.picture.dto.req.UploadPictureAnalysisReqDTO;
 import org.hgc.suts.picture.dto.resp.UploadPictureRespDTO;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -22,10 +24,11 @@ public interface PictureService extends IService<PictureDO> {
 
     /**
      * 图片分析
-     * @param uploadPictureAnalysisReqDTO 分析的图片信息
-     * @return 返回图片信息
+     * @param multipartFile 图片
+     * @param descriptionContent 描述
+     * @return 返回图片
      */
-    UploadPictureRespDTO uploadPictureAnalysis(UploadPictureAnalysisReqDTO uploadPictureAnalysisReqDTO);
+    UploadPictureRespDTO uploadPictureAnalysis(MultipartFile multipartFile,String descriptionContent);
 
     /**
      * 上传图片

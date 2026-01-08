@@ -38,7 +38,7 @@ public class PictureAnalysisConsumer implements RocketMQListener<MessageWrapper<
     private final CosManager cosManager;
     private final StringRedisTemplate stringRedisTemplate;
     // py端，进行场景识别地址
-    private final String aiApiUrl = "http://127.0.0.1:20000/api/vision-qa/qwen";
+    private final String aiApiUrl = "http://127.0.0.1:8000/vision-qa/qa";
     @Override
     public void onMessage(MessageWrapper<UploadPictureAnalysisEvent> messageWrapper) {
         // 开头打印日志，平常可 Debug 看任务参数，线上可报平安（比如消息是否消费，重新投递时获取参数等）
