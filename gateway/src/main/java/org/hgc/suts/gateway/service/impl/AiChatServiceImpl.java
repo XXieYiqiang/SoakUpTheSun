@@ -77,6 +77,7 @@ public class AiChatServiceImpl implements AiChatService {
         return AiChatRespDTO.builder()
                 .text(context.getFinalAnswer())
                 .clientCommand(context.getClientCommand())
+                .commandData(context.getCommandData())
                 .build();
     }
 }

@@ -40,9 +40,17 @@ public class ToolSummaryNode extends AbstractChainNode {
 
     @Override
     protected void execute(AiChatContext context) {
-        // 1. 检查是否有执行结果,如果 toolExecutionResult 为空，说明前面压根没调工具（是闲聊），或者执行节点挂了
-        if (StrUtil.isBlank(context.getToolExecutionResult())) {
-            log.info("无执行结果，跳过总结");
+        String executionResult = context.getToolExecutionResult();
+        String currentFinalAnswer = context.getFinalAnswer();
+        // 如果没有执行结果，且前面已经有回复（闲聊），则跳过总结
+        if (StrUtil.isBlank(executionResult) && StrUtil.isNotBlank(currentFinalAnswer)) {
+            log.info("无工具执行结果，且已有回复，跳过总结");
+            return;
+        }
+
+        // 2. 如果啥结果都没有
+        if (StrUtil.isBlank(executionResult)) {
+            context.setFinalAnswer("抱歉，我没听清，请再说一遍。");
             return;
         }
 
@@ -50,10 +58,12 @@ public class ToolSummaryNode extends AbstractChainNode {
 
         // 2. 构建 Prompt
         String systemPrompt = String.format(SUMMARY_PROMPT_TEMPLATE,
-                context.getUserId(),
+                // 用户说的话
                 context.getUserDescription(),
+                // 工具名
                 context.getToolName() != null ? context.getToolName() : context.getClientCommand(),
-                context.getToolExecutionResult()
+                // 结果
+                executionResult
         );
 
         // 3. 调用 AI 生成人话

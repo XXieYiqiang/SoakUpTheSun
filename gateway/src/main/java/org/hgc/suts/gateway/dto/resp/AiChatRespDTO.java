@@ -24,4 +24,9 @@ public class AiChatRespDTO {
      * - "CAPTURE_UPLOAD": 单次拍照分析 (前端拍照并上传)
      */
     private String clientCommand;
+
+    /**
+     * 指令附属数据
+     */
+    private Object commandData;
 }

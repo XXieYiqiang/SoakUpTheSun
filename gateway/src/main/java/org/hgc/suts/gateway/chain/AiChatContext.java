@@ -44,4 +44,9 @@ public class AiChatContext {
      * 最终产出
       */
     private String finalAnswer;
+
+    /**
+     * 指令附属数据
+     */
+    private Object commandData;
 }
