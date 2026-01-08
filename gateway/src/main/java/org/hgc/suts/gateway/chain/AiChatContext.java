@@ -3,40 +3,45 @@ package org.hgc.suts.gateway.chain;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-/**
- * AI 对话责任链上下文
- */
 @Data
 @Accessors(chain = true)
 public class AiChatContext {
-
     /**
-     * 当前操作用户ID (来自 UserContext)
+     * 用户id
      */
     private Long userId;
     /**
-     * 用户原始提问
+     * 用户描述
      */
-    private String userQuestion;
+    private String userDescription;
 
     /**
-     * 决策要调用的工具名
-     * 若为 null，则代表不需要调工具
+     * 历史对话
+     */
+    private String historyText;
+
+    /**
+     * 工具名称
      */
     private String toolName;
-    
+
     /**
-     * 工具参数 (JSON String)
+     * 工具参数
      */
     private String toolArgsJson;
 
     /**
-     * 工具执行后的原始返回结果
+     * 用于指挥前端,默认为NONE
+     */
+    private String clientCommand = "NONE";
+
+    /**
+     * 执行结果
      */
     private String toolExecutionResult;
 
     /**
-     * 最终返回给前端的回答
-     */
+     * 最终产出
+      */
     private String finalAnswer;
 }
