@@ -37,6 +37,9 @@ knife4j:
   setting:
     language: zh_cn
 
-sfu-front:
-  domain:
-    default: http://127.0.0.1:18001/join?room=%s
+sfu:
+  apiUrl: http://127.0.0.1:10014/room
+  front:
+    domain:
+      default: http://127.0.0.1:18001/join?room=%s
+
