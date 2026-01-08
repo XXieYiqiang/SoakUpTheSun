@@ -31,7 +31,8 @@ public class LoginInterceptor implements HandlerInterceptor {
             throw new ClientException("未登录，请先登录");
         }
 
-
+        // 放入token
+        UserContext.setToken(token);
         String account = stringRedisTemplate.opsForValue()
                 .get(RedisCacheConstant.USER_LOGIN_KEY_TOKEN_TO_USER + token);
 

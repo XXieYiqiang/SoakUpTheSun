@@ -2,6 +2,7 @@ package org.hgc.suts.gateway.common.biz.user;
 
 
 
+import com.alibaba.ttl.TransmittableThreadLocal;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -9,7 +10,9 @@ import java.time.LocalDateTime;
 @Component
 public class UserContext {
 
-    private static final ThreadLocal<UserInfoDTO> USER_HOLDER = new ThreadLocal<>();
+    private static final ThreadLocal<UserInfoDTO> USER_HOLDER = new TransmittableThreadLocal<>();
+
+    private static final ThreadLocal<String> TOKEN_TL = new TransmittableThreadLocal<>();
 
     /**
      * 设置当前登陆用户
@@ -73,11 +76,19 @@ public class UserContext {
         return user != null ? user.getLocation() : null;
     }
 
+    public static void setToken(String token) {
+        TOKEN_TL.set(token);
+    }
+
+    public static String getToken() {
+        return TOKEN_TL.get();
+    }
 
     /**
      * 清除账号
      */
     public static void remove() {
         USER_HOLDER.remove();
+        TOKEN_TL.remove();
     }
 }
