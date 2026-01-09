@@ -13,9 +13,9 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @EnableDiscoveryClient
 @MapperScan("org.hgc.suts.gateway.dao.mapper")
 @EnableFeignClients(basePackages = "org.hgc.suts.gateway.remote")
-public class GatewayApplication {
+public class AgentApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(GatewayApplication.class, args);
+        SpringApplication.run(AgentApplication.class, args);
     }
 }
