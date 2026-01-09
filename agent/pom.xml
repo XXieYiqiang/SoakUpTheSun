@@ -12,7 +12,7 @@
     </parent>
 
     <groupId>org.hgc.suts</groupId>
-    <artifactId>gateway</artifactId>
+    <artifactId>agent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>gateway</name>
     <description>SUTS AI 核心网关</description>
