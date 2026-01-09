@@ -75,10 +75,11 @@ export default {
   name: "SFURoom",
   data() {
     return {
-      wsUrl: "ws://127.0.0.1:10014/room/join",
-      roomID: "SwBPff6PZq4BixUoiZpufa",
+     wsUrl: "ws://127.0.0.1:10014/room/join",
+      // wsUrl: "ws://192.168.43.95:10014/room/join",
+      roomID: "4sKkL9upZLgUhLqVwpoF5H",
       uid: "user_" + Math.floor(Math.random() * 10000),
-      tokenInfo: '0e9a64fcff934802b92a4d254895917d',
+      tokenInfo: 'ad8ffa87aaf641d39cd31e952f1b1f4c',
 
       joined: false,
       loading: false,

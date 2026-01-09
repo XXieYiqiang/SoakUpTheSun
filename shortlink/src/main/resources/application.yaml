@@ -4,14 +4,14 @@ spring:
   application:
     name: shortlink
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-    username: root
+    url: jdbc:mysql://47.120.60.61:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    username: suts
     password: 123456
   data:
     redis:
-      host: 127.0.0.1
+      host: 47.120.60.61
       port: 6379
-      #password:
+      password: 123456
       timeout: 50000
   cloud:
     nacos:
