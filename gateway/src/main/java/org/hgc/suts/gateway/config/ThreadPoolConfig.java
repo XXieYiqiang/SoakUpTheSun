@@ -1,35 +1,34 @@
 package org.hgc.suts.gateway.config;
 
+import com.alibaba.ttl.threadpool.TtlExecutors;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
-/**
- * AI 任务专用线程池配置
- */
 @Configuration
-@EnableAsync
 public class ThreadPoolConfig {
 
     @Bean("aiTaskExecutor")
     public Executor aiTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        // 核心配置：CPU核数 * 2 (IO密集型)
-        int corePoolSize = Runtime.getRuntime().availableProcessors() * 2;
-        executor.setCorePoolSize(corePoolSize);
-        // 突发最大值
-        executor.setMaxPoolSize(32);
-        // 缓冲队列
-        executor.setQueueCapacity(500);
+
+        // 核心线程
+        executor.setCorePoolSize(200);
+        // 最大线程
+        executor.setMaxPoolSize(200);
+        // 队列容量
+        executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("suts-gateway-thread-");
-        // 拒绝策略：由调用线程处理
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        
+
+        // 2. 拒绝策略：直接抛出异常
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+
         executor.initialize();
-        return executor;
+
+        // 3. 使用 Alibaba TTL 包装，确保 UserContext 上下文能透传
+        return TtlExecutors.getTtlExecutor(executor.getThreadPoolExecutor());
     }
 }

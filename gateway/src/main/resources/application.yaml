@@ -23,6 +23,15 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+    openfeign:
+      okhttp:
+        # 开启 OkHttp
+        enabled: true
+      httpclient:
+        # 最大连接数
+        max-connections: 1000
+        # 每个目标服务的最大连接数
+        max-connections-per-route: 200
 
 rocketmq:
   name-server: 127.0.0.1:9876

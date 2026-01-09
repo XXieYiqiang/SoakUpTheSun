@@ -29,22 +29,8 @@ import java.util.concurrent.*;
 public class AiChatController {
 
     private final AiChatService aiChatService;
-    // 创建线程池
-    private static final ExecutorService AI_EXECUTOR = TtlExecutors.getTtlExecutorService(
-            new ThreadPoolExecutor(
-                    // 核心线程
-                    200,
-                    // 最大线程
-                    200,
-                    0L, TimeUnit.MILLISECONDS,
-                    // 等待队列
-                    new LinkedBlockingQueue<>(100),
-                    Executors.defaultThreadFactory(),
-                    // 拒绝策略
-                    new ThreadPoolExecutor.AbortPolicy()
-            )
-    );
 
+    private final Executor aiTaskExecutor;
 
     @PostMapping("/api/gateway/chat")
     @Operation(summary = "AI 智能对话")
@@ -87,10 +73,12 @@ public class AiChatController {
         });
 
         try {
-            AI_EXECUTOR.execute(() -> {
+            // 使用线程池执行任务
+            aiTaskExecutor.execute(() -> {
                 try {
                     log.info("异步任务执行中...");
                     AiChatRespDTO respDTO = aiChatService.executeChat(finalDesc);
+                    // 成功回调
                     deferredResult.setResult(Results.success(respDTO));
 
                 } catch (Exception e) {
@@ -99,6 +87,7 @@ public class AiChatController {
                 }
             });
         } catch (RejectedExecutionException e) {
+            // 捕获线程池满的异常
             log.warn("并发过高，任务拒绝");
             deferredResult.setErrorResult(new Result<AiChatRespDTO>().setCode("503").setMessage("服务火爆，请稍后"));
         }
