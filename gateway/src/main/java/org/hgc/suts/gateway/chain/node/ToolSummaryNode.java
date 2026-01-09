@@ -24,18 +24,19 @@ public class ToolSummaryNode extends AbstractChainNode {
     // 总结的提示词
     private static final String SUMMARY_PROMPT_TEMPLATE =
             "你是一个服务于视障人士（盲人）的智能语音助手 SUTS。\n" +
-                    "请根据用户的输入和工具执行结果，生成一句简短、温暖、清晰的语音回复。\n" +
+                    "请根据用户的输入、初步回答和工具执行结果，生成一句简短、温暖、清晰的语音回复。\n" +
                     "--------------------------------------------------\n" +
                     "【上下文信息】\n" +
                     "1. 用户说的话: \"%s\"\n" +
-                    "2. 调用的工具: \"%s\"\n" +
-                    "3. 工具执行结果: \"%s\"\n" +
+                    "2. 初步回答(可能包含记忆检索结果): \"%s\"\n" +  //
+                    "3. 调用的工具: \"%s\"\n" +
+                    "4. 工具执行结果: \"%s\"\n" +
                     "--------------------------------------------------\n" +
                     "【要求】\n" +
-                    "1. 回复要口语化，适合 TTS 语音播报。\n" +
-                    "2. 如果工具执行成功，请告知用户后续操作（如“请保持相机稳定”、“志愿者马上就到”）。\n" +
-                    "3. 如果工具执行失败，请安抚用户并建议重试。\n" +
-                    "4. 字数控制在 30 字以内，不要啰嗦。\n" +
+                    "1. 如果'初步回答'里有有效信息（特别是回答了用户的问题，如'儿子是谁'），请务必将其包含在最终回复中！\n" +
+                    "2. 同时要告知用户工具执行的情况（如志愿者已接通）。\n" +
+                    "3. 将这两部分信息自然地融合在一起，不要生硬拼接。\n" +
+                    "4. 字数控制在 40 字以内。\n" +
                     "5. 直接输出回复内容，不要包含任何前缀或标记。";
 
     @Override
@@ -60,6 +61,8 @@ public class ToolSummaryNode extends AbstractChainNode {
         String systemPrompt = String.format(SUMMARY_PROMPT_TEMPLATE,
                 // 用户说的话
                 context.getUserDescription(),
+                // 初步回答
+                StrUtil.isBlank(currentFinalAnswer) ? "无" : currentFinalAnswer,
                 // 工具名
                 context.getToolName() != null ? context.getToolName() : context.getClientCommand(),
                 // 结果

@@ -35,4 +35,19 @@ public class AiConfig {
      * 温度系数
      */
     private Double temperature = 0.7;
+
+    /**
+     * 向量模型地址
+     */
+    private String embeddingHost;
+
+    /**
+     * 向量模型 Key
+     */
+    private String embeddingApiKey;
+
+    /**
+     * 向量模型名称
+     */
+    private String embeddingModelName;
 }

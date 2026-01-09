@@ -35,4 +35,14 @@ public class RedisCacheConstant {
      * 分析图片视觉上下文key
      */
     public static final String GATEWAY_VISION_CONTEXT_KEY = "suts:gateway:vision:context:%s";
+
+    /**
+     * 向量索引的名称
+      */
+    public static final String VECTOR_INDEX_NAME = "suts:vector:index:memory";
+
+    /**
+     * 向量数据的 Key 前缀 如 suts:vector:data:memory:10086:uuid
+     */
+    public static final String VECTOR_DATA_KEY_PREFIX = "suts:vector:data:memory:";
 }

@@ -13,7 +13,7 @@ spring:
     redis:
       host: 127.0.0.1
       port: 6379
-      password: redis
+      #password:
       timeout: 50000
   elasticsearch:
     uris: http://localhost:9200
@@ -48,6 +48,14 @@ suts:
     api-key:
     # 3. 模型代码
     model-name: deepseek-chat
-    # 4. 其他设置
+    # 4. 向量模型
+    embedding-host: https://api.siliconflow.cn/v1
+    embedding-api-key:
+    embedding-model-name:
+    # 其他设置
     timeout: 60000
     temperature: 0.5
+    # 向量维度
+    vector:
+      # 向量维度，DeepSeek 是 1024
+      dimension: 1024

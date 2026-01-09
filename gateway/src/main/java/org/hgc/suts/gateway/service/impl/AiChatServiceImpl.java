@@ -45,7 +45,7 @@ public class AiChatServiceImpl implements AiChatService {
         String lastVisionJson = redisTemplate.opsForValue().get(visionKey);
 
         //2. 获取对话记忆
-        String historyText = chatMemoryManager.getHistoryText(userId);
+        String historyText = chatMemoryManager.getRelatedHistory(userId, userDescription);
 
         //3. 拼接输入
         String finalInput = userDescription;

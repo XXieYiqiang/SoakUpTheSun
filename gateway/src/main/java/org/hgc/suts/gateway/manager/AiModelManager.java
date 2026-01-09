@@ -11,6 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.hgc.suts.gateway.config.AiConfig;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * 通用 AI 模型管理器
  */
@@ -96,6 +99,48 @@ public class AiModelManager {
         } catch (Exception e) {
             log.error("LLM 调用失败", e);
             throw new RuntimeException("LLM : " + e.getMessage());
+        }
+    }
+
+    public List<Double> embed(String text) {
+        // 1. 拼接地址
+        String host = aiConfig.getEmbeddingHost();
+        String url = StrUtil.removeSuffix(host, "/") + "/embeddings";
+
+        // 2. 构建请求体
+        JSONObject requestBody = new JSONObject();
+        requestBody.set("model", aiConfig.getEmbeddingModelName());
+        requestBody.set("input", text);
+
+        try {
+            // 3. 发送请求
+            try (HttpResponse response = HttpRequest.post(url)
+                    .header("Authorization", "Bearer " + aiConfig.getEmbeddingApiKey())
+                    .header("Content-Type", "application/json")
+                    .body(requestBody.toString())
+                    .timeout(10000)
+                    .execute()) {
+
+                if (!response.isOk()) {
+                    log.error("Embedding 失败, Status: {}, Body: {}", response.getStatus(), response.body());
+                    // 失败降级
+                    return Collections.nCopies(1024, 0.0d);
+                }
+
+                // 4. 解析结果
+                JSONObject json = JSONUtil.parseObj(response.body());
+                JSONArray data = json.getJSONArray("data");
+                if (data == null || data.isEmpty()) {
+                    return Collections.nCopies(1024, 0.0d);
+                }
+
+                // 提取 embedding 数组
+                JSONArray vec = data.getJSONObject(0).getJSONArray("embedding");
+                return vec.toList(Double.class);
+            }
+        } catch (Exception e) {
+            log.error("Embedding 调用异常", e);
+            return Collections.nCopies(1024, 0.0d);
         }
     }
 }
