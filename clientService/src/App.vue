@@ -87,7 +87,7 @@ export default {
     showLayout() {
       // 假设你的登录页面的路由名称是 'login'
       // 只有当前路由名称不是 'login' 时，才显示头部和侧边栏
-      return this.$route.name !== 'login' && this.$route.name !== 'register';
+      return this.$route.name !== 'login' && this.$route.name !== 'register' && this.$route.name !== 'ViewIndex';
     },
     isLogin() {
       return this.$store.getters['user/isLogin'];
