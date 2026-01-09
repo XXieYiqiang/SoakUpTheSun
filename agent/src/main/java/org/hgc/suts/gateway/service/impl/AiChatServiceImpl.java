@@ -41,7 +41,7 @@ public class AiChatServiceImpl implements AiChatService {
         if (userId == null) throw new RuntimeException("用户未登录");
 
         //1. 获取视觉记忆
-        String visionKey = String.format(RedisCacheConstant.GATEWAY_VISION_CONTEXT_KEY, userId);
+        String visionKey = String.format(RedisCacheConstant.AGENT_VISION_CONTEXT_KEY, userId);
         String lastVisionJson = redisTemplate.opsForValue().get(visionKey);
 
         //2. 获取对话记忆

@@ -102,7 +102,7 @@ public class ChatMemoryManager {
      */
     @Deprecated
     public String getHistoryText(Long userId) {
-        String key = String.format(RedisCacheConstant.GATEWAY_CHAT_HISTORY_KEY, userId);
+        String key = String.format(RedisCacheConstant.AGENT_CHAT_HISTORY_KEY, userId);
 
         // 1. 获取 Redis 中存的所有记录
         List<String> allHistoryJson = redisTemplate.opsForList().range(key, 0, -1);

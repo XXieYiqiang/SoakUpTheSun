@@ -29,12 +29,12 @@ public class RedisCacheConstant {
     /**
      * chat用户上下文key
      */
-    public static final String GATEWAY_CHAT_HISTORY_KEY = "suts:gateway:chat:history:%s";
+    public static final String AGENT_CHAT_HISTORY_KEY = "suts:agent:chat:history:%s";
 
     /**
      * 分析图片视觉上下文key
      */
-    public static final String GATEWAY_VISION_CONTEXT_KEY = "suts:gateway:vision:context:%s";
+    public static final String AGENT_VISION_CONTEXT_KEY = "suts:agent:vision:context:%s";
 
     /**
      * 向量索引的名称

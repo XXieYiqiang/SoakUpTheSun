@@ -32,7 +32,7 @@ public class AiChatController {
 
     private final Executor aiTaskExecutor;
 
-    @PostMapping("/api/gateway/chat")
+    @PostMapping("/api/agent/chat")
     @Operation(summary = "AI 智能对话")
     public Result<AiChatRespDTO> chat(@RequestBody String userDescription) {
         // 1. 参数校验
@@ -50,7 +50,7 @@ public class AiChatController {
     }
 
 
-    @PostMapping("/api/gateway/chat/async")
+    @PostMapping("/api/agent/chat/async")
     @Operation(summary = "AI 智能对话 (异步高并发版)")
     public DeferredResult<Result<AiChatRespDTO>> chatAsync(@RequestBody String userDescription) {
 
