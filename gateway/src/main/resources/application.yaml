@@ -1,44 +1,81 @@
 server:
-  port: 10000
+  port: 9999
+
 spring:
-  profiles:
-    active: local
   application:
     name: gateway
-  datasource:
-    url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: 123456
-  data:
-    redis:
-      host: 127.0.0.1
-      port: 6379
-      password: redis
-      timeout: 50000
-  elasticsearch:
-    uris: http://localhost:9200
-    username: elastic
-    password: 123456
   cloud:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+    gateway:
+      discovery:
+        locator:
+          enabled: true
 
-rocketmq:
-  name-server: 127.0.0.1:9876
-  producer:
-    group: suts_gateway-service_common-message-execute_pg
-    send-message-timeout: 2000
-    retry-times-when-send-failed: 1
-    retry-times-when-send-async-failed: 1
-suts:
-  ai:
-    # 1. 基础地址
-    api-host: https://api.deepseek.com
-    # 2. 你的 Key
-    api-key:
-    # 3. 模型代码
-    model-name: deepseek-chat
-    # 4. 其他设置
-    timeout: 60000
-    temperature: 0.5
+      # 跨域配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: false
+
+      routes:
+        # 1. Agent 服务
+        - id: agent-route
+          # Nacos 中注册的名字
+          uri: lb://agent
+          predicates:
+            - Path=/api/agent/**
+          filters:
+            - StripPrefix=0
+
+        # 2. Picture 服务 HTTP
+        - id: picture-http-route
+          # Nacos 中注册的名字
+          uri: lb://picture
+          predicates:
+            - Path=/api/picture/**
+          filters:
+            - StripPrefix=0
+
+        # 3. Picture 服务 WebSocket (实时避障)
+        # 前端连: ws://localhost:9999/ws/picture/ws/ai/video
+        - id: picture-websocket-route
+          uri: lb:ws://picture
+          predicates:
+            - Path=/ws/picture/**
+          filters:
+            - StripPrefix=0
+
+        # 4. User 服务
+        - id: user-route
+          uri: lb://user
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=0
+
+        # 5. Volunteer 服务
+        - id: volunteer-route
+          uri: lb://volunteer
+          predicates:
+            - Path=/api/volunteer/**
+          filters:
+            - StripPrefix=0
+
+        # 6. ShortLink 服务
+        - id: shortlink-route
+          uri: lb://shortlink
+          predicates:
+            - Path=/api/shortlink/**
+          filters:
+            - StripPrefix=0
+filter:
+  white-list:
+    - /api/user/login
+    - /api/user/register
+    - /api/user/code/send
+    - /api/shortlink/restore

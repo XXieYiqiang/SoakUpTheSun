@@ -18,6 +18,11 @@ import lombok.NoArgsConstructor;
 public class UploadPictureAnalysisEvent {
 
     /**
+     * 用户id
+     */
+    private Long userId;
+
+    /**
      * 图片 ID
      */
     private Long pictureId;

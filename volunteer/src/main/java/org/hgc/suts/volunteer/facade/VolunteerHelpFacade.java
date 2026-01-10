@@ -1,6 +1,11 @@
 package org.hgc.suts.volunteer.facade;
 
+import cn.hutool.http.HttpRequest;
+import cn.hutool.http.HttpResponse;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson2.JSON;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hgc.suts.volunteer.common.constant.RedisCacheConstant;
@@ -16,6 +21,8 @@ import org.hgc.suts.volunteer.service.VolunteerMatchService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 
@@ -28,18 +35,36 @@ public class VolunteerHelpFacade {
     private final VolunteerMatchService volunteerMatchService;
     private final StringRedisTemplate stringRedisTemplate;
 
-    @Value("${sfu-front.domain.default}")
+    @Value("${sfu.front.domain.default}")
     private String stuFrontDomain;
+
+    @Value("${sfu.apiUrl}")
+    private String sfuAPIUrl;
 
     // 核心编排方法
     public TargetRoomLinkInfoRespDTO createAndDispatchHelp() {
-
+        // 获取用户token
+        String userToken = null;
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null) {
+            HttpServletRequest request = attributes.getRequest();
+            userToken = request.getHeader("token");
+        }
         // 创建房间
-
-        // 返回房间链接和令牌(暂时写死)
-        String room="123456";
-        String targetRoomLink =String.format(stuFrontDomain,room);
-        String authTicket="token";
+        HttpResponse response = HttpRequest.post(sfuAPIUrl)
+                .header("token", userToken)
+                .timeout(30000)
+                .execute();
+        // 返回房间链接和令牌
+        String responseBody = response.body();
+        JSONObject jsonObject = JSONUtil.parseObj(responseBody);
+        if (jsonObject.getInt("code") != 200) {
+            throw new ClientException("创建即时通讯房间错误");
+        }
+        JSONObject data = jsonObject.getJSONObject("data");
+        String roomID=data.getStr("roomID");
+        String targetRoomLink =String.format(stuFrontDomain,roomID);
+        String authTicket=data.getStr("token");
         // 创建短链接
         ShortLinkHelpReqDTO shortLinkHelpReqDTO = ShortLinkHelpReqDTO.builder()
                 .targetRoomLink(targetRoomLink)

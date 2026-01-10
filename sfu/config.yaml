@@ -5,17 +5,17 @@ system:
 
 
 mysql:
-  host: 127.0.0.1
+  host: 47.120.60.61
   port: 3306
-  username: 
-  password: 
-  database: 
+  username: gimchat
+  password: LMLlml062424
+  database: g-im-chat
   max_idle_conns: 100
   max_open_conns: 1000
 
 redis:
-  addr: 127.0.0.1:6379
-  password:
+  addr: 47.120.60.61:6379
+  password: 123456
   db: 0
 
 

@@ -44,6 +44,11 @@ const routes = [
     path: '/userView',
     name: 'userView',
     component: () => import('../views/UserView.vue')
+  },
+  {
+    path: '/ViewIndex',
+    name: 'ViewIndex',
+    component: () => import('../views/ViewIndex.vue')
   }
 ];
 

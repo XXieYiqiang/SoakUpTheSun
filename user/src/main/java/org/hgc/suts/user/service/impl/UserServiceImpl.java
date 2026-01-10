@@ -115,9 +115,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
     @Override
     public UserLoginRespDTO login(UserLoginReqDTO requestParam) {
-        if (!hasUserAccount(requestParam.getUserAccount())) {
-            throw new ClientException("该用户不存在");
-        }
+        /**
+         * TODO: 这里布隆过滤器数据，需要在服务启动时，从数据库 初始化加载数据进去
+         */
+//        if (!hasUserAccount(requestParam.getUserAccount())) {
+//            throw new ClientException("该用户不存在");
+//        }
         LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
                 .eq(UserDO::getUserAccount, requestParam.getUserAccount())
                 .eq(UserDO::getUserPassword, getEncryptPassword(requestParam.getPassword()))

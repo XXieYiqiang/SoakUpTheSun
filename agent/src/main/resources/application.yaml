@@ -1,0 +1,61 @@
+server:
+  port: 10000
+spring:
+  profiles:
+    active: local
+  application:
+    name: agent
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      #password:
+      timeout: 50000
+  elasticsearch:
+    uris: http://localhost:9200
+    username: elastic
+    password: 123456
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+    openfeign:
+      okhttp:
+        # 开启 OkHttp
+        enabled: true
+      httpclient:
+        # 最大连接数
+        max-connections: 1000
+        # 每个目标服务的最大连接数
+        max-connections-per-route: 200
+
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: suts_gateway-service_common-message-execute_pg
+    send-message-timeout: 2000
+    retry-times-when-send-failed: 1
+    retry-times-when-send-async-failed: 1
+suts:
+  ai:
+    # 1. 基础地址
+    api-host: https://api.deepseek.com
+    # 2. 你的 Key
+    api-key:
+    # 3. 模型代码
+    model-name: deepseek-chat
+    # 4. 向量模型
+    embedding-host: https://api.siliconflow.cn/v1
+    embedding-api-key:
+    embedding-model-name:
+    # 其他设置
+    timeout: 60000
+    temperature: 0.5
+    # 向量维度
+    vector:
+      # 向量维度，DeepSeek 是 1024
+      dimension: 1024

@@ -32,9 +32,10 @@ public class PictureController {
      * 分析图片
      */
     @PostMapping("/api/picture/uploadPictureAnalysis")
-    public Result<UploadPictureRespDTO> uploadPictureAnalysis(@RequestBody UploadPictureAnalysisReqDTO uploadPictureAnalysisReqDTO){
-        return Results.success(pictureService.uploadPictureAnalysis(uploadPictureAnalysisReqDTO));
+    public Result<UploadPictureRespDTO> uploadPictureAnalysis(@RequestPart("file") MultipartFile multipartFile,@RequestParam String descriptionContent){
+        return Results.success(pictureService.uploadPictureAnalysis(multipartFile,descriptionContent));
     }
+
 
     /**
      * 获取分析结果

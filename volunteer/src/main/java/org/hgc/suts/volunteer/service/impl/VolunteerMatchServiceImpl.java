@@ -26,6 +26,7 @@ import org.hgc.suts.volunteer.service.VolunteerUserService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
@@ -93,6 +94,8 @@ public class VolunteerMatchServiceImpl implements VolunteerMatchService {
 
         UserInfoDTO user = UserContext.getUser();
         if (user == null) throw new ClientException("用户不存在");
+
+        log.info("user=={}",user);
 
         // 解析视障者位置
         Double[] coords = parseLocation(user.getLocation());
@@ -183,8 +186,8 @@ public class VolunteerMatchServiceImpl implements VolunteerMatchService {
             Query activeDataQuery = new Query.Builder().bool(b -> {
                 // 过滤
                 b.must(m -> m.term(t -> t.field("delFlag").value(0)));
-                b.must(m -> m.range(r -> r.field("startTime").lte(JsonData.of(nowTime))));
-                b.must(m -> m.range(r -> r.field("endTime").gte(JsonData.of(nowTime))));
+//                b.must(m -> m.range(r -> r.field("startTime").lte(JsonData.of(nowTime))));
+//                b.must(m -> m.range(r -> r.field("endTime").gte(JsonData.of(nowTime))));
 
                 // 地理位置初筛
                 b.filter(f -> f.geoDistance(g -> g
