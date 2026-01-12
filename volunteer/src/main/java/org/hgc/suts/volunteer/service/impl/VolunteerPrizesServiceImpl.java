@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -69,6 +71,7 @@ public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMappe
             60, TimeUnit.SECONDS,
             // 缓冲队列
             new LinkedBlockingQueue<>(200),
+            new CustomizableThreadFactory("volunteer-prize-export-"),
             // 队列满了由主线程执行，防止报错丢失任务
             new ThreadPoolExecutor.CallerRunsPolicy()
     );
@@ -337,6 +340,22 @@ public class VolunteerPrizesServiceImpl extends ServiceImpl<VolunteerPrizesMappe
                 .eq(VolunteerPrizesDO::getStatus, VolunteerPrizesSendTypeEnum.IN_PROGRESS.getStatus())
                 .set(VolunteerPrizesDO::getStatus, VolunteerPrizesSendTypeEnum.PENDING.getStatus());
         volunteerPrizesMapper.update(updateWrapper);
+    }
+    @PreDestroy
+    public void shutdown() {
+        // 1. 停止接收新任务
+        executorService.shutdown();
+        try {
+            // 2. 最多等待 30秒，让正在跑的 Excel 任务跑完
+            if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
+                // 3. 超时还没跑完，强制关闭
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            // 4. 被中断时，强制关闭
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }
 
