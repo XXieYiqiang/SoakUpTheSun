@@ -1,5 +1,5 @@
 package org.hgc.suts.picture.constant;
-
+@Deprecated
 public class defaultSpaceConstant {
 
     /**

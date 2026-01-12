@@ -59,3 +59,8 @@ suts:
     vector:
       # 向量维度，DeepSeek 是 1024
       dimension: 1024
+    chat:
+      # 用户上下文长度
+      max-context-char-limit: 4000
+      # Redis 里最多保留多少条物理数据
+      redis-physical-limit: 50

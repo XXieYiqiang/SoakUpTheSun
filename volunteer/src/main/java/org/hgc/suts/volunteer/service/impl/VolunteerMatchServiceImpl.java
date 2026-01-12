@@ -23,6 +23,7 @@ import org.hgc.suts.volunteer.dto.req.VolunteerMatchReqDTO;
 import org.hgc.suts.volunteer.dto.resp.VolunteerMatchRespDTO;
 import org.hgc.suts.volunteer.service.VolunteerMatchService;
 import org.hgc.suts.volunteer.service.VolunteerUserService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -42,12 +43,17 @@ public class VolunteerMatchServiceImpl implements VolunteerMatchService {
     private final VolunteerUserMapper volunteerUserMapper;
 
     // 返回活跃用户数量
-    private static final int TARGET_MATCH_COUNT = 4;
+    @Value("${volunteer.match.target-count}")
+    private int targetMatchCount;
     // 热池缺人，则返回活跃用户的倍数
-    private static final int COLD_USER_MULTIPLIER = 5;
+    @Value("${volunteer.match.cold-user-multiplier}")
+    private int coldUserMultiplier;
     // 活跃池中的
-    private static final long ACTIVE_POOL_TTL = 30 * 60;
-    private static final long COOLDOWN_SECONDS = 60;
+    @Value("${volunteer.match.active-pool-ttl-seconds}")
+    private long activePoolTtlSeconds;
+    @Value("${volunteer.match.cooldown-seconds}")
+    private long cooldownSeconds;
+
     private final ElasticsearchClient elasticsearchClient;
     private static final String ES_INDEX_NAME = "volunteer_index";
     // 查询脚本
@@ -75,7 +81,7 @@ public class VolunteerMatchServiceImpl implements VolunteerMatchService {
             int sex = volunteerUser.getSex() != null ? volunteerUser.getSex() : 0;
 
             try {
-                volunteerRedisManager.addVolunteerToActivePool(volunteerId, lat, lon, age, sex, ACTIVE_POOL_TTL);
+                volunteerRedisManager.addVolunteerToActivePool(volunteerId, lat, lon, age, sex, activePoolTtlSeconds);
             } catch (Exception e) {
                 throw new ClientException("加入热池失败(系统异常): " + e.getMessage());
             }
@@ -113,19 +119,19 @@ public class VolunteerMatchServiceImpl implements VolunteerMatchService {
 
         // 在活跃队列中匹配
         try {
-            List<Long> hotIds = volunteerRedisManager.matchBestVolunteers(userLat, userLon, userAge, userSex, TARGET_MATCH_COUNT, req.getSexWeight(), req.getAgeWeight(), req.getLocationWeight());
+            List<Long> hotIds = volunteerRedisManager.matchBestVolunteers(userLat, userLon, userAge, userSex, targetMatchCount, req.getSexWeight(), req.getAgeWeight(), req.getLocationWeight());
             finalCandidates.addAll(hotIds);
         } catch (Exception e) {
             log.error("Redis热池匹配异常", e);
         }
 
         // 活跃队列人数没有那么多的话，使用es兜底匹配
-        if (finalCandidates.size() < TARGET_MATCH_COUNT) {
+        if (finalCandidates.size() < targetMatchCount) {
             // 计算缺口,差多少人
-            int missingCount = TARGET_MATCH_COUNT - finalCandidates.size();
+            int missingCount = targetMatchCount - finalCandidates.size();
 
             // 按倍数计算应该从es获得的人数(因为热池的一定是活跃的，es不一定是活跃的)
-            int esSearchCount = missingCount * COLD_USER_MULTIPLIER;
+            int esSearchCount = missingCount * coldUserMultiplier;
 
             try {
                 // 从es中查
@@ -139,7 +145,7 @@ public class VolunteerMatchServiceImpl implements VolunteerMatchService {
         }
         // 近期被匹配了就应该放进冷却池中，防止短信轰炸
         if (!finalCandidates.isEmpty()) {
-            volunteerRedisManager.setCooldown(finalCandidates, COOLDOWN_SECONDS);
+            volunteerRedisManager.setCooldown(finalCandidates, cooldownSeconds);
         }
 
         return finalCandidates;

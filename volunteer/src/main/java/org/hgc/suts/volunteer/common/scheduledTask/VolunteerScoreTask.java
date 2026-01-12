@@ -12,6 +12,7 @@ import org.hgc.suts.volunteer.dao.entity.VolunteerRatingDO;
 import org.hgc.suts.volunteer.dao.entity.VolunteerUserDO;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerRatingMapper;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerUserMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -32,7 +33,10 @@ public class VolunteerScoreTask {
     private TransactionTemplate transactionTemplate;
 
     private static final String ES_INDEX_NAME = "volunteer_index";
-    private static final int BATCH_SIZE = 2000;
+
+    // 批次大小
+    @Value("${volunteer.task.score.batch-size}")
+    private int batchSize;
 
     @PostConstruct
     public void init() {
@@ -49,7 +53,7 @@ public class VolunteerScoreTask {
 
         while (true) {
             // 1. 游标拉取数据，防止内存溢出
-            List<VolunteerRatingDO> ratingList = volunteerRatingMapper.selectUncalculatedBatch(lastId, BATCH_SIZE);
+            List<VolunteerRatingDO> ratingList = volunteerRatingMapper.selectUncalculatedBatch(lastId, batchSize);
             if (CollUtil.isEmpty(ratingList)) {
                 break;
             }
