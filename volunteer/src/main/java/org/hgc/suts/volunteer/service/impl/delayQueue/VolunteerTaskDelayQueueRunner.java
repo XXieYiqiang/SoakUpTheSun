@@ -1,7 +1,9 @@
 package org.hgc.suts.volunteer.service.impl.delayQueue;
 
 import com.alibaba.fastjson2.JSONObject;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hgc.suts.volunteer.dao.entity.VolunteerTaskDO;
 import org.hgc.suts.volunteer.dao.mapper.VolunteerTaskMapper;
 import org.hgc.suts.volunteer.service.VolunteerTaskService;
@@ -10,7 +12,9 @@ import org.redisson.api.RedissonClient;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.hgc.suts.volunteer.common.constant.RedisCacheConstant.TASK_SEND_GUARANTEE_QUEUE;
 
@@ -19,37 +23,61 @@ import static org.hgc.suts.volunteer.common.constant.RedisCacheConstant.TASK_SEN
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 class VolunteerTaskDelayQueueRunner implements CommandLineRunner {
 
     private final VolunteerTaskMapper volunteerTaskMapper;
     private final RedissonClient redissonClient;
     private final VolunteerTaskService volunteerTaskService;
-
+    private final Executor taskExecutor;
+    // 控制运行状态
+    private volatile boolean running = true;
     @Override
-    public void run(String... args) throws Exception {
-        Executors.newSingleThreadExecutor(
-                        runnable -> {
-                            Thread thread = new Thread(runnable);
-                            thread.setName("delay_volunteer-task_send-num_consumer");
-                            thread.setDaemon(Boolean.TRUE);
-                            return thread;
-                        })
-                .execute(() -> {
-                    RBlockingDeque<JSONObject> blockingDeque = redissonClient.getBlockingDeque(TASK_SEND_GUARANTEE_QUEUE);
-                    for (; ; ) {
-                        try {
-                            // 获取延迟队列已到达时间元素
-                            JSONObject delayJsonObject = blockingDeque.take();
-                            if (delayJsonObject != null) {
-                                // 获取志愿者推送记录，查看发送条数是否已经有值，有的话代表上面线程池已经处理完成，无需再处理
-                                VolunteerTaskDO volunteerTaskDO = volunteerTaskMapper.selectById(delayJsonObject.getLong("volunteerTaskId"));
-                                if (volunteerTaskDO.getSendNum() == null) {
-                                    volunteerTaskService.refreshVolunteerTaskSendNum(delayJsonObject);
-                                }
-                            }
-                        } catch (Throwable ignored) {
-                        }
-                    }
-                });
+    public void run(String... args) {
+        taskExecutor.execute(this::processDelayQueue);
+    }
+    private void processDelayQueue() {
+        RBlockingDeque<JSONObject> blockingDeque = redissonClient.getBlockingDeque(TASK_SEND_GUARANTEE_QUEUE);
+        log.info("延迟队列消费者已启动...");
+
+        while (running && !Thread.currentThread().isInterrupted()) {
+            try {
+                // 阻塞获取，设置一个超时时间，防止永久死锁无法响应中断
+                JSONObject delayJsonObject = blockingDeque.poll(5, TimeUnit.SECONDS);
+
+                if (delayJsonObject != null) {
+                    processTask(delayJsonObject);
+                }
+            } catch (InterruptedException e) {
+                log.warn("消费者线程被中断，准备退出");
+                // 恢复中断状态
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                log.error("消费任务处理异常", e);
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException ignored) {
+                    // 休眠期间如果被中断，恢复标记并退出
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        log.info("延迟队列消费者已停止");
+    }
+
+    // 处理任务
+    private void processTask(JSONObject json) {
+        Long taskId = json.getLong("volunteerTaskId");
+        VolunteerTaskDO taskDO = volunteerTaskMapper.selectById(taskId);
+        if (taskDO != null && taskDO.getSendNum() == null) {
+            volunteerTaskService.refreshVolunteerTaskSendNum(json);
+        }
+    }
+
+    @PreDestroy
+    public void stop() {
+        this.running = false;
     }
 }
