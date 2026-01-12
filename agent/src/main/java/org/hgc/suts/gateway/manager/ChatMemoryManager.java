@@ -80,7 +80,7 @@ public class ChatMemoryManager {
      * @param userDescription 用户的输入
      * @param aiAnswer        AI 的回答
      */
-    @Async("AI_EXECUTOR")
+    @Async("aiTaskExecutor")
     public void saveHistory(Long userId, String userDescription, String aiAnswer) {
         try {
             // 1. 不拆分 role 存储，合并成一段完整的对话文本
