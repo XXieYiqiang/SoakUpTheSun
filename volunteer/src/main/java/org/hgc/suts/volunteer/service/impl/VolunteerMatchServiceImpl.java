@@ -94,8 +94,8 @@ public class VolunteerMatchServiceImpl implements VolunteerMatchService {
 
         UserInfoDTO user = UserContext.getUser();
         if (user == null) throw new ClientException("用户不存在");
-
-        log.info("user=={}",user);
+        // 之前打印用户全部信息太多了 刷新控制台
+        log.debug("match userId={}", userId);
 
         // 解析视障者位置
         Double[] coords = parseLocation(user.getLocation());

@@ -5,9 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.hgc.suts.shortlink.common.constant.RedisCacheConstant;
 import org.hgc.suts.shortlink.utils.RandomUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
@@ -53,14 +57,37 @@ public class ShortLinkCodeService {
         if (isRefilling.get()) {
             return;
         }
+        // 分布式锁 key
+        String lockKey = RedisCacheConstant.SHORT_LINK_REFILL_LOCK_KEY;
+        String lockValue = UUID.randomUUID().toString();
 
-        // 检查数量
-        Long currentSize = stringRedisTemplate.opsForSet().size(RedisCacheConstant.SHORT_LINK_CODE_POOL_KEY);
-        if (currentSize != null && currentSize < REFILL_THRESHOLD) {
-            // 尝试拿锁，拿到后补充code
-            if (isRefilling.compareAndSet(false, true)) {
+        // 尝试获取锁（SETNX + TTL）
+        Boolean locked = stringRedisTemplate.opsForValue().setIfAbsent(lockKey, lockValue, Duration.ofSeconds(30));
+        // 未拿到锁直接返回，避免多实例重复补充
+        if (Boolean.FALSE.equals(locked)) {
+            return;
+        }
+        try {
+            // 检查数量
+            Long currentSize = stringRedisTemplate.opsForSet().size(RedisCacheConstant.SHORT_LINK_CODE_POOL_KEY);
+            if (currentSize != null && currentSize < REFILL_THRESHOLD) {
+                // 直接触发补充（锁已保证互斥）
                 refillPoolAsync(currentSize.intValue());
             }
+        } finally {
+            // 释放锁，仅当 value 匹配时删除
+            String releaseScript =
+                    "if redis.call('GET', KEYS[1]) == ARGV[1] then " +
+                            "return redis.call('DEL', KEYS[1]) " +
+                            "else return 0 end";
+            DefaultRedisScript<Long> releaseLockScript = new DefaultRedisScript<>();
+            releaseLockScript.setScriptText(releaseScript);
+            releaseLockScript.setResultType(Long.class);
+            stringRedisTemplate.execute(
+                    releaseLockScript,
+                    Collections.singletonList(lockKey),
+                    lockValue
+            );
         }
     }
 
