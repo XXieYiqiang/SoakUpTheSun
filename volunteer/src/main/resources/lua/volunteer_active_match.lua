@@ -31,29 +31,36 @@ for _, member in ipairs(geoResults) do
     if isCooldown == 0 then
         -- 获取信息
         local infoKey = infoKeyPrefix .. volunteerId
-        local info = redis.call('HMGET', infoKey, 'sex', 'age')
 
-        -- 活跃性检查,存在即活跃
-        if info[1] and info[2] then
-            local vSex = tonumber(info[1])
-            local vAge = tonumber(info[2])
-
-            -- 计算偏差值
-            local locDiff = dist * 1000
-
-            local sexDiff = (reqSex - vSex) ^ 2
-            local ageDiff = (reqAge - vAge) ^ 2
-
-            -- 计算惩罚值
-            local fx = (sexWeight * sexDiff) + (ageWeight * ageDiff) + (locationWeight * locDiff)
-
-            -- 计算最终得分
-            local K_SCALE = 0.05
-            local score = math.exp(-K_SCALE * fx)
-
-            table.insert(candidates, {volunteerId, score})
-        else
+        -- 先判断 hash 是否存在，不存在则清理 GEO
+        local infoExists = redis.call('EXISTS', infoKey)
+        -- 清理僵尸 GEO 成员
+        if infoExists == 0 then
             redis.call('ZREM', geoKey, volunteerId)
+        else
+            local info = redis.call('HMGET', infoKey, 'sex', 'age') -- 🟢[新增]
+            -- 活跃性检查,存在即活跃
+            if info[1] and info[2] then
+                local vSex = tonumber(info[1])
+                local vAge = tonumber(info[2])
+
+                -- 计算偏差值
+                local locDiff = dist * 1000
+
+                local sexDiff = (reqSex - vSex) ^ 2
+                local ageDiff = (reqAge - vAge) ^ 2
+
+                -- 计算惩罚值
+                local fx = (sexWeight * sexDiff) + (ageWeight * ageDiff) + (locationWeight * locDiff)
+
+                -- 计算最终得分
+                local K_SCALE = 0.05
+                local score = math.exp(-K_SCALE * fx)
+
+                table.insert(candidates, {volunteerId, score})
+            else
+                redis.call('ZREM', geoKey, volunteerId)
+            end
         end
     end
 end
