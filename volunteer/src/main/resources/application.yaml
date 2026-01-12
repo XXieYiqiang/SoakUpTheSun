@@ -36,3 +36,18 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+
+volunteer:
+  match:
+    # 返回活跃用户数量
+    target-count: 4
+    # 热池缺人，则返回活跃用户的倍数
+    cold-user-multiplier: 5
+    # 活跃池中的
+    active-pool-ttl-seconds: 1800
+    # 冷却时间
+    cooldown-seconds: 60
+  # 批次大小
+  task:
+   score:
+    batch-size: 2000

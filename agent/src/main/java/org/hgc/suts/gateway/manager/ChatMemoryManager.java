@@ -32,14 +32,16 @@ public class ChatMemoryManager {
     // AI 模型管理器
     private final AiModelManager aiModelManager;
     // 向量纬度
-    @Value("${suts.ai.vector.dimension:1024}")
+    @Value("${suts.ai.vector.dimension}")
     private int vectorDimension;
 
     // 用户上下文长度
-    private static final int MAX_CONTEXT_CHAR_LIMIT = 4000;
+    @Value("${suts.ai.chat.max-context-char-limit}")
+    private int maxContextCharLimit;
 
     // Redis 里最多保留多少条物理数据
-    private static final int REDIS_PHYSICAL_LIMIT = 50;
+    @Value("${suts.ai.chat.redis-physical-limit:50}")
+    private int redisPhysicalLimit;
 
     /**
      * 获取与当前问题最相关的历史记录 (RAG)
@@ -126,7 +128,7 @@ public class ChatMemoryManager {
             int msgLen = (role + content).length() + 5;
 
             // 3. 判断是否超长,超长丢弃
-            if (currentTotalLength + msgLen > MAX_CONTEXT_CHAR_LIMIT) {
+            if (currentTotalLength + msgLen > maxContextCharLimit) {
                 break;
             }
 

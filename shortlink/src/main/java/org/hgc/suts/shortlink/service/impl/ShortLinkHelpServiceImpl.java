@@ -55,14 +55,15 @@ public class ShortLinkHelpServiceImpl extends ServiceImpl<ShortLinkHelpMapper, S
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
     private final RBloomFilter<String> shortUriCreateCachePenetrationBloomFilter;
-
+    // 默认跳转前缀
     @Value("${short-link.domain.default}")
     private String createShortLinkDefaultDomain;
     @Value("${short-link.domain.default}")
     private String domain;
 
     // 定义过期时间常量：10分钟
-    private static final long EXPIRE_MINUTES = 10;
+    @Value("${short-link.help.expire-minutes}")
+    private long expireMinutes;
 
     @Override
     public ShortLinkHelpRespDTO createShortLinkHelp(ShortLinkHelpReqDTO requestParam) {
@@ -98,7 +99,7 @@ public class ShortLinkHelpServiceImpl extends ServiceImpl<ShortLinkHelpMapper, S
         stringRedisTemplate.opsForValue().set(
                 shortlinkGoToKey,
                 JSON.toJSONString(shortLinkHelpDO),
-                EXPIRE_MINUTES,
+                expireMinutes,
                 TimeUnit.MINUTES
         );
         // 删除空值，否则新建之后也会不存在。
@@ -171,7 +172,7 @@ public class ShortLinkHelpServiceImpl extends ServiceImpl<ShortLinkHelpMapper, S
             stringRedisTemplate.opsForValue().set(
                     shortlinkGoToKey,
                     JSON.toJSONString(shortLinkHelpDO),
-                    EXPIRE_MINUTES,
+                    expireMinutes,
                     TimeUnit.MINUTES
             );
             // 验证验证码

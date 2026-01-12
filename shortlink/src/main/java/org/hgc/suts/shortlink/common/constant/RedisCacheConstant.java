@@ -48,4 +48,9 @@ public class RedisCacheConstant {
      */
     public static final String SHORT_LINK_GOTO_LOCK_KEY =  "suts:short-link:goto-lock:%s";
 
+    /**
+     * 短链补充锁 key
+     */
+    public static final String SHORT_LINK_REFILL_LOCK_KEY = "suts:shortlink:refill:lock";
+
 }

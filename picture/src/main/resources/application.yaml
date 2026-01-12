@@ -38,3 +38,11 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+picture:
+  space:
+    # 默认空间名
+    space-name: 默认空间名
+    # 空间图片最大总大小
+    max-size: 10485760000
+    # 空间图片最大数量
+    max-count: 10000

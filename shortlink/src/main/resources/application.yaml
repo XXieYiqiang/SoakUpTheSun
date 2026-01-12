@@ -19,8 +19,16 @@ spring:
         server-addr: 127.0.0.1:8848
 short-link:
   domain:
+    # 默认跳转前缀
     default: 127.0.0.1:10011/restore
-
+  code-pool:
+    # 默认池子最大大小
+    max-size: 1000
+    # 补充阈值
+    refill-threshold: 200
+  help:
+    # 定义过期时间常量：10分钟
+    expire-minutes: 10
 
 #http://localhost:10010/doc.html
 knife4j:

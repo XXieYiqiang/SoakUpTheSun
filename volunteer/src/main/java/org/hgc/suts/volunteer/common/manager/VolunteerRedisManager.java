@@ -28,9 +28,28 @@ public class VolunteerRedisManager {
 
     // 注入配置类里定义的 Lua 脚本 Bean
     private final DefaultRedisScript<List> volunteerActiveMatch;
+    private final DefaultRedisScript<Long> addVolunteerToActivePoolScript;
+    private final DefaultRedisScript<Long> setCooldownScript;
 
     // 志愿者入匹配池
     public void addVolunteerToActivePool(Long volunteerId, double lat, double lon, int age, int sex, long ttlSeconds) {
+        stringRedisTemplate.execute(
+                addVolunteerToActivePoolScript,
+                java.util.Arrays.asList(
+                        RedisCacheConstant.VOLUNTEER_MATCH_ACTIVE_GEO_KEY,
+                        RedisCacheConstant.VOLUNTEER_MATCH_ACTIVE_INFO_PREFIX_KEY
+                ),
+                String.valueOf(lon),
+                String.valueOf(lat),
+                volunteerId.toString(),
+                String.valueOf(sex),
+                String.valueOf(age),
+                String.valueOf(ttlSeconds)
+        );
+    }
+
+    // 志愿者入匹配池
+    public void oldAddVolunteerToActivePool(Long volunteerId, double lat, double lon, int age, int sex, long ttlSeconds) {
         // 1. GEO 添加
         stringRedisTemplate.opsForGeo().add(RedisCacheConstant.VOLUNTEER_MATCH_ACTIVE_GEO_KEY,
                 new RedisGeoCommands.GeoLocation<>(
@@ -91,8 +110,24 @@ public class VolunteerRedisManager {
         }
     }
 
-    // 设置频控
     public void setCooldown(List<Long> volunteerIds, long seconds) {
+        if (volunteerIds == null || volunteerIds.isEmpty()) return;
+
+        java.util.List<String> args = new java.util.ArrayList<>();
+        for (Long id : volunteerIds) {
+            args.add(id.toString());
+        }
+        args.add(String.valueOf(seconds));
+
+        stringRedisTemplate.execute(
+                setCooldownScript,
+                java.util.Collections.singletonList(RedisCacheConstant.VOLUNTEER_MATCH_COOLDOWN_PREFIX_KEY),
+                args.toArray()
+        );
+    }
+
+    // 设置频控
+    public void oldSetCooldown(List<Long> volunteerIds, long seconds) {
         if (volunteerIds == null || volunteerIds.isEmpty()) return;
         for (Long id : volunteerIds) {
             String key = RedisCacheConstant.VOLUNTEER_MATCH_COOLDOWN_PREFIX_KEY + id;
