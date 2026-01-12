@@ -73,12 +73,16 @@ public class ShortLinkCodeService {
             log.info("触发code补充，当前剩余: {}", currentSize);
             int needCount = MAX_POOL_SIZE - currentSize;
 
-            // 批量生成并推入 Redis
+            java.util.List<String> codes = new java.util.ArrayList<>(needCount);
             for (int i = 0; i < needCount; i++) {
-                // 这里调用你的生成逻辑
                 String code = randomUtils.generateShortCode(6);
-                stringRedisTemplate.opsForSet().add(RedisCacheConstant.SHORT_LINK_CODE_POOL_KEY, code);
+                codes.add(code);
             }
+            stringRedisTemplate.opsForSet().add(
+                    RedisCacheConstant.SHORT_LINK_CODE_POOL_KEY,
+                    codes.toArray(new String[0])
+            );
+
             log.info("补充code完成，补充了 {} 个code", needCount);
 
         } catch (Exception e) {

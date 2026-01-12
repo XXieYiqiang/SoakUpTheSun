@@ -54,4 +54,26 @@ public class RedisScriptConfig {
         script.setResultType(List.class); // 关键修改：Long -> List
         return script;
     }
+
+    /**
+     * 志愿者入活跃池脚本
+     */
+    @Bean
+    public DefaultRedisScript<Long> addVolunteerToActivePoolScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/add_volunteer_active_pool.lua")));
+        script.setResultType(Long.class);
+        return script;
+    }
+
+    /**
+     * 批量设置冷却脚本
+     */
+    @Bean
+    public DefaultRedisScript<Long> setCooldownScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/set_volunteer_cooldown.lua")));
+        script.setResultType(Long.class);
+        return script;
+    }
 }
