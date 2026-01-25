@@ -1,0 +1,81 @@
+server:
+  port: 9999
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+
+      # 跨域配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: false
+
+      routes:
+        # 1. Agent 服务
+        - id: agent-route
+          # Nacos 中注册的名字
+          uri: lb://agent
+          predicates:
+            - Path=/api/agent/**
+          filters:
+            - StripPrefix=0
+
+        # 2. Picture 服务 HTTP
+        - id: picture-http-route
+          # Nacos 中注册的名字
+          uri: lb://picture
+          predicates:
+            - Path=/api/picture/**
+          filters:
+            - StripPrefix=0
+
+        # 3. Picture 服务 WebSocket (实时避障)
+        # 前端连: ws://localhost:9999/ws/picture/ws/ai/video
+        - id: picture-websocket-route
+          uri: lb:ws://picture
+          predicates:
+            - Path=/ws/picture/**
+          filters:
+            - StripPrefix=0
+
+        # 4. User 服务
+        - id: user-route
+          uri: lb://user
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=0
+
+        # 5. Volunteer 服务
+        - id: volunteer-route
+          uri: lb://volunteer
+          predicates:
+            - Path=/api/volunteer/**
+          filters:
+            - StripPrefix=0
+
+        # 6. ShortLink 服务
+        - id: shortlink-route
+          uri: lb://shortlink
+          predicates:
+            - Path=/api/shortlink/**
+          filters:
+            - StripPrefix=0
+filter:
+  white-list:
+    - /api/user/login
+    - /api/user/register
+    - /api/user/code/send
+    - /api/shortlink/restore

@@ -4,7 +4,10 @@ import com.baomidou.mybatisplus.annotation.*;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.Date;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 /**
@@ -39,6 +42,23 @@ public class UserDO implements Serializable {
      * 用户头像
      */
     private String userAvatar;
+
+    /**
+     * 性别 1/0 男/女
+     */
+    private Integer sex;
+
+    /**
+     * 生日
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private LocalDateTime birthday;
+
+    /**
+     * 经纬度
+     */
+    private String location;
+
 
     /**
      * 用户简介

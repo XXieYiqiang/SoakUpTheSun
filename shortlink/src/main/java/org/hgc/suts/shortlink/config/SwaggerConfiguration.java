@@ -27,9 +27,9 @@ public class SwaggerConfiguration implements ApplicationRunner {
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
-                .info(new Info() // 基本信息配置
-                        .title("图片模块的API") // 标题
-                        .description("对图片的增删改查等") // 描述 Api 接口文档的基本信息
+                .info(new Info()
+                        .title("短链接模块的API")
+                        .description("对短链接的新增，跳转等")
                         .version("v1.0.0") // 版本
                 );
     }

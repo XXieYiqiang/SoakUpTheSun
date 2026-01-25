@@ -1,0 +1,35 @@
+// 1. 获取权重参数
+double sexWeight = params.sexWeight;
+double ageWeight = params.ageWeight;
+double locationWeight = params.locationWeight;
+
+// 2. 计算性别差异 (0 或 1)
+// 如果数据库中没有性别数据，默认取值 0
+double sexVal = doc['sex'].size() > 0 ? doc['sex'].value : 0;
+double sexDiff = Math.pow(params.userSex - sexVal, 2);
+
+// 3. 计算年龄差异
+// 如果数据库中没有生日数据，默认使用当前年份（即认为同龄，差异为0）
+int docYear = doc['birthday'].size() > 0 ? doc['birthday'].value.year : params.currentYear;
+int docAge = params.currentYear - docYear;
+double ageDiff = Math.pow(params.userAge - docAge, 2);
+
+// 4. 计算距离差异 (单位：米)
+double locDiff = 0.0;
+if (doc['location'].size() > 0) {
+   // 计算两点间的地球大圆距离
+   locDiff = doc['location'].arcDistance(params.userLat, params.userLon);
+}
+
+// 5. 计算加权总差异 f(x)
+// 注意：此处假设传入的权重均为正数，fx 代表“总惩罚值”
+double fx = sexWeight * sexDiff + ageWeight * ageDiff + locationWeight * locDiff;
+
+// 6. 定义缩放系数 K
+// 控制分数的衰减速度，值越大，对差异越敏感（分数下降越快）
+double K_SCALE = 0.05;
+
+// 7. 返回指数衰减分数
+// 当 fx=0 (完全匹配) 时，结果为 1.0
+// 当 fx 增大时，结果迅速趋向于 0.0
+return Math.exp(-K_SCALE * fx);
