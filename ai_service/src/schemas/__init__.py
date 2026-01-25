@@ -11,10 +11,15 @@ from .vision_qa import (
     ServiceStatus
 )
 
+from .risk import (
+    RiskAssessResponse,
+)
+
 __all__ = [
     "DetectionRequest",
     "DetectionResult",
     "ClassDistribution",
     "QAResult",
-    "ServiceStatus"
+    "ServiceStatus",
+    "RiskAssessResponse",
 ]

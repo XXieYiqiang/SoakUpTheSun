@@ -6,10 +6,11 @@ import io
 import logging
 import base64
 from typing import Dict, Any, Optional, List
+
 from PIL import Image, ImageDraw, ImageFont
 
-from ..models.yolo_model import YoloModel
-from ..schemas.detection import DetectionRequest, DetectionResult, ClassDistribution
+from ..models import YoloModel
+from ..schemas import DetectionRequest, DetectionResult, ClassDistribution
 from ..config import model_settings
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ class DetectionService:
         if self._initialized:
             return
 
-        if not self.default_model_path or not self.default_model_path:
+        if not self.default_model_path:
             logger.warning("YOLO path not configured; detection disabled")
             self._initialized = True
             return
@@ -78,13 +79,11 @@ class DetectionService:
         counter: Dict[str, int] = {}
         for d in detections:
             counter[d.class_name] = counter.get(d.class_name, 0) + 1
-
         return [ClassDistribution(class_name=k, count=v) for k, v in sorted(counter.items(), key=lambda x: -x[1])]
 
     def draw_detections_on_image(self, image: Image.Image, detections: List[DetectionResult]) -> Image.Image:
         draw = ImageDraw.Draw(image)
 
-        # 尽量使用默认字体
         try:
             font = ImageFont.load_default()
         except Exception:
@@ -122,9 +121,14 @@ class DetectionService:
 
         image = self.preprocess_image(request.image_base64)
 
-        raw = model.detect_objects(image=image)
-        detections = self.postprocess_detections(raw)
+        # 兼容：YoloModel.detect_objects 可能返回 List 或 Dict
+        raw_out = model.detect_objects(inputs={"image": image})
+        if isinstance(raw_out, dict):
+            raw_dets = raw_out.get("detections", []) or []
+        else:
+            raw_dets = raw_out
 
+        detections = self.postprocess_detections(raw_dets)
         class_dist = self.generate_class_distribution(detections)
 
         annotated_b64 = None

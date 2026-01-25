@@ -3,8 +3,6 @@
 uvicorn src.app:app --reload
 """
 
-"""FastAPI 应用入口"""
-
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -12,9 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings, init_config
 from .config.model_config import init_model_config
+
 from .services.vision_qa_service import vision_qa_service
 from .services.detection_service import detection_service
+
 from .routes.vision_qa import router as vision_qa_router
+from .routes.risk_detection import router as risk_router
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +56,5 @@ app.add_middleware(
 )
 
 app.include_router(vision_qa_router)
+app.include_router(risk_router)
 
-
-@app.get("/health", tags=["Health"])
-def health():
-    return {"status": "ok"}

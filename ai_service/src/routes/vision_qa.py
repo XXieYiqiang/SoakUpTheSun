@@ -9,7 +9,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 
-from ..services.vision_qa_service import vision_qa_service
+from ..services import vision_qa_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vision-qa", tags=["VisionQA"])
