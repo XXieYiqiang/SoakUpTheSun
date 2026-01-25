@@ -18,6 +18,9 @@ const {
   VITE_WX_APPID,
   VITE_APP_PUBLIC_BASE,
   VITE_FALLBACK_LOCALE,
+  VITE_APP_BAIDU_SPEECH_APPID,
+  VITE_APP_BAIDU_SPEECH_APIKEY,
+  VITE_APP_BAIDU_SPEECH_SECRETKEY,
 } = env
 // console.log('manifest.config.ts env:', env)
 
@@ -50,7 +53,13 @@ export default defineManifestConfig({
     },
     /* 模块配置 */
     modules: {
-      Speech: {},
+      Speech: {
+        baidu: {
+          appid: VITE_APP_BAIDU_SPEECH_APPID,
+          apikey: VITE_APP_BAIDU_SPEECH_APIKEY,
+          secretkey: VITE_APP_BAIDU_SPEECH_SECRETKEY,
+        },
+      },
     },
     /* 应用发布信息 */
     distribute: {

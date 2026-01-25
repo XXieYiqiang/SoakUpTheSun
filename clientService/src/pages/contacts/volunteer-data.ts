@@ -5,6 +5,9 @@ export interface Volunteer {
   phone: string
   region: string
   volunteerId: string
+  gender: string
+  age: number
+  skills: string[]
 }
 
 export const volunteerData: Volunteer[] = [
@@ -15,6 +18,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '北京市朝阳区',
     volunteerId: 'VOL-2024-001',
+    gender: '男',
+    age: 28,
+    skills: ['急救', '心理咨询', '陪伴'],
   },
   {
     id: '2',
@@ -23,6 +29,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '上海市浦东新区',
     volunteerId: 'VOL-2024-002',
+    gender: '女',
+    age: 32,
+    skills: ['医疗护理', '康复训练', '健康指导'],
   },
   {
     id: '3',
@@ -31,6 +40,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '广州市天河区',
     volunteerId: 'VOL-2024-003',
+    gender: '女',
+    age: 26,
+    skills: ['生活照料', '家务协助', '购物代办'],
   },
   {
     id: '4',
@@ -39,6 +51,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '深圳市南山区',
     volunteerId: 'VOL-2024-004',
+    gender: '男',
+    age: 35,
+    skills: ['技术支持', '设备维修', '智能设备教学'],
   },
   {
     id: '5',
@@ -47,6 +62,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '杭州市西湖区',
     volunteerId: 'VOL-2024-005',
+    gender: '男',
+    age: 30,
+    skills: ['陪同就医', '用药提醒', '健康监测'],
   },
   {
     id: '6',
@@ -55,6 +73,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '成都市武侯区',
     volunteerId: 'VOL-2024-006',
+    gender: '女',
+    age: 29,
+    skills: ['情感陪伴', '心理疏导', '聊天交流'],
   },
   {
     id: '7',
@@ -63,6 +84,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '武汉市江汉区',
     volunteerId: 'VOL-2024-007',
+    gender: '男',
+    age: 33,
+    skills: ['搬运协助', '重物搬运', '体力劳动'],
   },
   {
     id: '8',
@@ -71,6 +95,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '南京市鼓楼区',
     volunteerId: 'VOL-2024-008',
+    gender: '女',
+    age: 27,
+    skills: ['文化娱乐', '读书陪伴', '书法教学'],
   },
   {
     id: '9',
@@ -79,6 +106,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '西安市雁塔区',
     volunteerId: 'VOL-2024-009',
+    gender: '男',
+    age: 31,
+    skills: ['安全防护', '紧急救援', '消防知识'],
   },
   {
     id: '10',
@@ -87,6 +117,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '重庆市渝中区',
     volunteerId: 'VOL-2024-010',
+    gender: '女',
+    age: 25,
+    skills: ['营养膳食', '饮食指导', '烹饪教学'],
   },
   {
     id: '11',
@@ -95,6 +128,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '北京市海淀区',
     volunteerId: 'VOL-2024-011',
+    gender: '男',
+    age: 36,
+    skills: ['法律咨询', '权益保护', '政策解读'],
   },
   {
     id: '12',
@@ -103,6 +139,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '上海市徐汇区',
     volunteerId: 'VOL-2024-012',
+    gender: '男',
+    age: 28,
+    skills: ['网络服务', '信息查询', '在线咨询'],
   },
   {
     id: '13',
@@ -111,6 +150,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '广州市越秀区',
     volunteerId: 'VOL-2024-013',
+    gender: '女',
+    age: 34,
+    skills: ['康复按摩', '理疗服务', '中医养生'],
   },
   {
     id: '14',
@@ -119,6 +161,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '深圳市福田区',
     volunteerId: 'VOL-2024-014',
+    gender: '男',
+    age: 40,
+    skills: ['家政服务', '清洁整理', '环境维护'],
   },
   {
     id: '15',
@@ -127,6 +172,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '杭州市滨江区',
     volunteerId: 'VOL-2024-015',
+    gender: '女',
+    age: 26,
+    skills: ['儿童陪伴', '教育辅导', '亲子活动'],
   },
   {
     id: '16',
@@ -135,6 +183,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '成都市锦江区',
     volunteerId: 'VOL-2024-016',
+    gender: '男',
+    age: 32,
+    skills: ['园艺服务', '植物养护', '绿化指导'],
   },
   {
     id: '17',
@@ -143,6 +194,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '武汉市武昌区',
     volunteerId: 'VOL-2024-017',
+    gender: '女',
+    age: 29,
+    skills: ['理发服务', '个人护理', '形象设计'],
   },
   {
     id: '18',
@@ -151,6 +205,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '南京市玄武区',
     volunteerId: 'VOL-2024-018',
+    gender: '男',
+    age: 38,
+    skills: ['维修服务', '家电维修', '水电维修'],
   },
   {
     id: '19',
@@ -159,6 +216,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '西安市碑林区',
     volunteerId: 'VOL-2024-019',
+    gender: '女',
+    age: 33,
+    skills: ['手工制作', '编织教学', '艺术指导'],
   },
   {
     id: '20',
@@ -167,6 +227,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '重庆市江北区',
     volunteerId: 'VOL-2024-020',
+    gender: '男',
+    age: 30,
+    skills: ['健身指导', '运动康复', '健康管理'],
   },
   {
     id: '21',
@@ -175,6 +238,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '北京市西城区',
     volunteerId: 'VOL-2024-021',
+    gender: '男',
+    age: 35,
+    skills: ['金融咨询', '理财规划', '保险服务'],
   },
   {
     id: '22',
@@ -183,6 +249,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '上海市静安区',
     volunteerId: 'VOL-2024-022',
+    gender: '女',
+    age: 31,
+    skills: ['翻译服务', '语言教学', '文化交流'],
   },
   {
     id: '23',
@@ -191,6 +260,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '广州市海珠区',
     volunteerId: 'VOL-2024-023',
+    gender: '男',
+    age: 37,
+    skills: ['安全巡逻', '秩序维护', '门岗服务'],
   },
   {
     id: '24',
@@ -199,6 +271,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '深圳市宝安区',
     volunteerId: 'VOL-2024-024',
+    gender: '女',
+    age: 27,
+    skills: ['音乐治疗', '歌唱教学', '艺术表演'],
   },
   {
     id: '25',
@@ -207,6 +282,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '杭州市拱墅区',
     volunteerId: 'VOL-2024-025',
+    gender: '男',
+    age: 34,
+    skills: ['装修咨询', '家居改造', '空间设计'],
   },
   {
     id: '26',
@@ -215,6 +293,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '成都市青羊区',
     volunteerId: 'VOL-2024-026',
+    gender: '女',
+    age: 30,
+    skills: ['宠物照料', '宠物护理', '宠物训练'],
   },
   {
     id: '27',
@@ -223,6 +304,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '武汉市洪山区',
     volunteerId: 'VOL-2024-027',
+    gender: '男',
+    age: 29,
+    skills: ['摄影服务', '视频制作', '影像记录'],
   },
   {
     id: '28',
@@ -231,6 +315,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '南京市建邺区',
     volunteerId: 'VOL-2024-028',
+    gender: '女',
+    age: 28,
+    skills: ['写作辅导', '文档整理', '文书服务'],
   },
   {
     id: '29',
@@ -239,6 +326,9 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '西安市莲湖区',
     volunteerId: 'VOL-2024-029',
+    gender: '男',
+    age: 32,
+    skills: ['驾驶服务', '接送服务', '出行协助'],
   },
   {
     id: '30',
@@ -247,5 +337,8 @@ export const volunteerData: Volunteer[] = [
     phone: '138****8888',
     region: '重庆市沙坪坝区',
     volunteerId: 'VOL-2024-030',
+    gender: '女',
+    age: 26,
+    skills: ['舞蹈教学', '健身操', '形体训练'],
   },
 ]

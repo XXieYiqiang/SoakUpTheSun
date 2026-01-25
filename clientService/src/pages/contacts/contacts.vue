@@ -16,11 +16,16 @@ interface Volunteer {
   phone: string
   region: string
   volunteerId: string
+  gender: string
+  age: number
+  skills: string[]
 }
 
 const searchKeyword = ref('')
 const currentLetter = ref('')
 const scrollViewRef = ref<any>(null)
+const showDetailPopup = ref(false)
+const selectedVolunteer = ref<Volunteer | null>(null)
 
 const filteredData = computed(() => {
   if (!searchKeyword.value) {
@@ -59,35 +64,9 @@ watch(indexList, (newList) => {
   }
 }, { immediate: true })
 
-function handleContactClick(contact: Volunteer) {
-  uni.showActionSheet({
-    itemList: [
-      t('contacts.call'),
-      t('contacts.message'),
-      t('contacts.viewDetail'),
-    ],
-    success: (res) => {
-      if (res.tapIndex === 0) {
-        uni.makePhoneCall({
-          phoneNumber: contact.phone,
-        })
-      }
-      else if (res.tapIndex === 1) {
-        uni.showToast({
-          title: t('contacts.messageDeveloping'),
-          icon: 'none',
-          duration: 2000,
-        })
-      }
-      else if (res.tapIndex === 2) {
-        uni.showToast({
-          title: t('contacts.detailDeveloping'),
-          icon: 'none',
-          duration: 2000,
-        })
-      }
-    },
-  })
+function handleContactClick(volunteer: Volunteer) {
+  selectedVolunteer.value = volunteer
+  showDetailPopup.value = true
 }
 
 function handleSearchInput(e: any) {
@@ -185,33 +164,24 @@ function scrollToLetter(letter: string) {
           <view class="letter-header">
             {{ letter }}
           </view>
-          <view
-            v-for="contact in groupedData[letter]"
-            :key="contact.id"
-            class="contact-item"
-            @click="handleContactClick(contact)"
-          >
-            <view class="contact-avatar">
-              <text class="avatar-text">
-                {{ contact.name.charAt(0) }}
-              </text>
-            </view>
-            <view class="contact-info">
-              <text class="contact-name">
-                {{ contact.name }}
-              </text>
-              <text class="contact-phone">
-                {{ contact.phone }}
-              </text>
-            </view>
-            <view class="contact-icon">
-              <u-icon
-                name="phone-fill"
-                size="40"
-                color="#5D9997"
-              />
-            </view>
-          </view>
+          <u-cell-group>
+            <u-cell-item
+              v-for="volunteer in groupedData[letter]"
+              :key="volunteer.id"
+              :title="volunteer.name"
+              :label="volunteer.phone"
+              :arrow="true"
+              @click="handleContactClick(volunteer)"
+            >
+              <template #icon>
+                <view class="contact-avatar">
+                  <text class="avatar-text">
+                    {{ volunteer.name.charAt(0) }}
+                  </text>
+                </view>
+              </template>
+            </u-cell-item>
+          </u-cell-group>
         </view>
       </view>
     </scroll-view>
@@ -230,6 +200,100 @@ function scrollToLetter(letter: string) {
         {{ letter }}
       </view>
     </view>
+
+    <u-popup
+      v-model="showDetailPopup"
+      mode="center"
+      :round="16"
+      :closeable="false"
+      :safe-area-inset-bottom="true"
+    >
+      <view
+        v-if="selectedVolunteer"
+        class="volunteer-detail"
+      >
+        <view class="detail-header">
+          <view class="detail-avatar">
+            <text class="detail-avatar-text">
+              {{ selectedVolunteer.name.charAt(0) }}
+            </text>
+          </view>
+          <view class="detail-name">
+            {{ selectedVolunteer.name }}
+          </view>
+          <view class="detail-id">
+            {{ selectedVolunteer.volunteerId }}
+          </view>
+        </view>
+
+        <view class="detail-content">
+          <view class="detail-item">
+            <view class="detail-label">
+              <u-icon name="phone" size="32" color="#5D9997" />
+              <text class="label-text">电话</text>
+            </view>
+            <view class="detail-value">
+              {{ selectedVolunteer.phone }}
+            </view>
+          </view>
+
+          <view class="detail-item">
+            <view class="detail-label">
+              <u-icon name="account" size="32" color="#5D9997" />
+              <text class="label-text">性别</text>
+            </view>
+            <view class="detail-value">
+              {{ selectedVolunteer.gender }}
+            </view>
+          </view>
+
+          <view class="detail-item">
+            <view class="detail-label">
+              <u-icon name="calendar" size="32" color="#5D9997" />
+              <text class="label-text">年龄</text>
+            </view>
+            <view class="detail-value">
+              {{ selectedVolunteer.age }}岁
+            </view>
+          </view>
+
+          <view class="detail-item">
+            <view class="detail-label">
+              <u-icon name="map" size="32" color="#5D9997" />
+              <text class="label-text">地区</text>
+            </view>
+            <view class="detail-value">
+              {{ selectedVolunteer.region }}
+            </view>
+          </view>
+
+          <view class="detail-item full-width">
+            <view class="detail-label">
+              <u-icon name="star" size="32" color="#5D9997" />
+              <text class="label-text">技能</text>
+            </view>
+            <view class="detail-value skills">
+              <view
+                v-for="(skill, index) in selectedVolunteer.skills"
+                :key="index"
+                class="skill-tag"
+              >
+                {{ skill }}
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="detail-footer">
+          <u-button
+            type="primary"
+            @click="showDetailPopup = false"
+          >
+            关闭
+          </u-button>
+        </view>
+      </view>
+    </u-popup>
   </view>
 </template>
 
@@ -278,66 +342,23 @@ function scrollToLetter(letter: string) {
       color: #999999;
       font-weight: 500;
     }
+  }
 
-    .contact-item {
-      display: flex;
-      align-items: center;
-      padding: 24rpx;
-      background: #ffffff;
-      border-bottom: 1rpx solid #f0f0f0;
-      transition: background-color 0.3s;
+  .contact-avatar {
+    width: 96rpx;
+    height: 96rpx;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #5d9997 0%, #4a7a78 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 20px;
 
-      &:active {
-        background-color: #f8f8f8;
-      }
-
-      .contact-avatar {
-        width: 96rpx;
-        height: 96rpx;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #5d9997 0%, #4a7a78 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 24rpx;
-        flex-shrink: 0;
-
-        .avatar-text {
-          font-size: 40rpx;
-          color: #ffffff;
-          font-weight: 600;
-        }
-      }
-
-      .contact-info {
-        flex: 1;
-        min-width: 0;
-
-        .contact-name {
-          display: block;
-          font-size: 32rpx;
-          color: #333333;
-          font-weight: 500;
-          margin-bottom: 8rpx;
-        }
-
-        .contact-phone {
-          display: block;
-          font-size: 26rpx;
-          color: #999999;
-        }
-      }
-
-      .contact-icon {
-        width: 72rpx;
-        height: 72rpx;
-        border-radius: 50%;
-        background: #f0f8f8;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
+    .avatar-text {
+      font-size: 40rpx;
+      color: #ffffff;
+      font-weight: 600;
     }
   }
 
@@ -372,6 +393,109 @@ function scrollToLetter(letter: string) {
         color: #ffffff;
         font-weight: 600;
       }
+    }
+  }
+
+  .volunteer-detail {
+    width: 600rpx;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: #ffffff;
+    padding: 40rpx 32rpx;
+
+    .detail-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 40rpx;
+
+      .detail-avatar {
+        width: 120rpx;
+        height: 120rpx;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #5d9997 0%, #4a7a78 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20rpx;
+
+        .detail-avatar-text {
+          font-size: 48rpx;
+          color: #ffffff;
+          font-weight: 600;
+        }
+      }
+
+      .detail-name {
+        font-size: 36rpx;
+        color: #333333;
+        font-weight: 600;
+        margin-bottom: 8rpx;
+      }
+
+      .detail-id {
+        font-size: 24rpx;
+        color: #999999;
+      }
+    }
+
+    .detail-content {
+      .detail-item {
+        display: flex;
+        align-items: center;
+        padding: 24rpx 0;
+        border-bottom: 1rpx solid #f0f0f0;
+
+        &.full-width {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        .detail-label {
+          display: flex;
+          align-items: center;
+          min-width: 120rpx;
+
+          .label-text {
+            font-size: 28rpx;
+            color: #666666;
+            margin-left: 8rpx;
+          }
+        }
+
+        .detail-value {
+          flex: 1;
+          font-size: 28rpx;
+          color: #333333;
+          margin-left: 20rpx;
+
+          &.skills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12rpx;
+            margin-top: 16rpx;
+            margin-left: 0;
+
+            .skill-tag {
+              padding: 8rpx 20rpx;
+              background: #f0f8f8;
+              color: #5d9997;
+              font-size: 24rpx;
+              border-radius: 8rpx;
+            }
+          }
+        }
+      }
+    }
+
+    .detail-footer {
+      margin-top: 40rpx;
+      padding-top: 32rpx;
+      border-top: 1rpx solid #f0f0f0;
     }
   }
 }

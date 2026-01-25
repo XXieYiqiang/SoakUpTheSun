@@ -173,14 +173,22 @@ function handleSetupFingerprint() {
   })
 }
 
+import { logout } from '@/api/login'
+
 function handleLogout() {
   uni.showModal({
     title: t('settings.logoutTitle'),
     content: t('settings.logoutConfirm'),
     confirmText: t('settings.confirm'),
     cancelText: t('settings.cancel'),
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
+        try {
+          await logout()
+        } catch (error) {
+          console.error('Logout failed:', error)
+        }
+        
         uni.showToast({
           title: t('settings.logoutSuccess'),
           icon: 'success',

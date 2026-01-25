@@ -17,7 +17,47 @@ const userInfo = reactive({
   region: '北京市',
   phone: '138****8888',
   fingerprintCode: 'FP-2024-001234',
+  profile: '这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下',
+  createTime: '2024-01-01',
 })
+
+import { getUserInfo } from '@/api/login'
+const STORAGE_KEY = 'login_credentials'
+
+onShow(() => {
+  fetchUserInfo()
+})
+
+async function fetchUserInfo() {
+  try {
+    const saved = uni.getStorageSync(STORAGE_KEY)
+    if (!saved.phone) {
+      console.warn('未找到保存的登录信息')
+      uni.switchTab({
+        url: '/pages/login/login',
+      })
+      return
+    }
+    const res = await getUserInfo(saved.phone)
+    const data = res
+    if (data) {
+      userInfo.nickname = data.userName || userInfo.nickname
+      userInfo.phone = data.userAccount || userInfo.phone
+      userInfo.avatar = data.userAvatar || userInfo.avatar
+      userInfo.gender = data.sex === 1 ? '男' : (data.sex === 0 ? '女' : '未知')
+      userInfo.region = data.location || userInfo.region
+      userInfo.profile = data.userProfile || userInfo.profile
+      if (data.createTime) {
+         userInfo.createTime = data.createTime.split(' ')[0]
+      }
+      
+      // 更新storage
+      uni.setStorageSync('user_info', data)
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+}
 
 const showNicknamePopup = ref(false)
 const showGenderPopup = ref(false)
@@ -77,16 +117,30 @@ const infoList = computed(() => [
   },
   {
     key: 'phone',
-    label: t('basicInfo.phone'),
+    label: t('basicInfo.userAccount'),
     value: userInfo.phone,
     icon: 'phone',
     disabled: true,
+  },
+  {
+    key: 'profile',
+    label: t('basicInfo.profile'),
+    value: userInfo.profile,
+    icon: 'file-text',
+    disabled: true, // 简介暂不支持编辑，或点击跳转编辑页
   },
   {
     key: 'fingerprintCode',
     label: t('basicInfo.fingerprintCode'),
     value: userInfo.fingerprintCode,
     icon: 'fingerprint',
+    disabled: true,
+  },
+  {
+    key: 'createTime',
+    label: t('basicInfo.createTime'),
+    value: userInfo.createTime,
+    icon: 'clock',
     disabled: true,
   },
 ])
@@ -682,6 +736,8 @@ function handleRegionCancel() {
           font-size: 30rpx;
           color: #666;
           margin-right: 12rpx;
+          text-align: right;
+          padding-left: 50rpx;
         }
       }
     }

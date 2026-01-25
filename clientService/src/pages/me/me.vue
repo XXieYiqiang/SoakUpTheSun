@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { t } from '@/locale/index'
+import { getUserInfo } from '@/api/login'
 
 definePage({
   style: {
@@ -13,6 +14,39 @@ const userInfo = reactive({
   nickname: '用户昵称',
   phone: '138****8888',
 })
+
+const STORAGE_KEY = 'login_credentials'
+
+onShow(() => {
+  fetchUserInfo()
+})
+
+async function fetchUserInfo() {
+  try {
+    const saved = uni.getStorageSync(STORAGE_KEY)
+    if (!saved.phone) {
+      console.warn('未找到保存的登录信息')
+      uni.switchTab({
+        url: '/pages/login/login',
+      })
+      return
+    }
+    const res = await getUserInfo(saved.phone)
+    // http wrapper returns responseData.data directly
+    const data = res 
+    if (data) {
+      userInfo.nickname = data.userName || '用户昵称'
+      userInfo.phone = data.userAccount || '暂无账号'
+      if (data.userAvatar) {
+        userInfo.avatar = data.userAvatar
+      }
+      // 保存用户信息到 storage 以便其他页面使用
+      uni.setStorageSync('user_info', data)
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+}
 
 const menuList = computed(() => [
   {
@@ -60,12 +94,10 @@ function handleQRCode() {
   })
 }
 
-function handleEditProfile() {
-  uni.showToast({
-    title: t('me.editProfile'),
-    icon: 'none',
-    duration: 2000,
-  })
+function handleCallVolunteer() {
+    uni.navigateTo({
+      url: '/pages/me/volunteer-info',
+    })
 }
 </script>
 
@@ -140,14 +172,13 @@ function handleEditProfile() {
       </view>
 
       <view class="edit-section">
-        <view
-          class="edit-btn"
-          @click="handleEditProfile"
+        <u-button
+          plain
+          type="primary"
+          @click="handleCallVolunteer"
         >
-          <text class="edit-text">
-            {{ t('me.editProfile') }}
-          </text>
-        </view>
+          呼叫志愿者
+        </u-button>
       </view>
     </scroll-view>
   </view>
@@ -286,27 +317,6 @@ function handleEditProfile() {
 
   .edit-section {
     padding: 40rpx 20rpx;
-
-    .edit-btn {
-      width: 100%;
-      height: 88rpx;
-      background: #ffffff;
-      border-radius: 16rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.3s ease;
-
-      &:active {
-        background: #f0f0f0;
-      }
-
-      .edit-text {
-        font-size: 30rpx;
-        color: #5d9997;
-        font-weight: 500;
-      }
-    }
   }
 }
 </style>

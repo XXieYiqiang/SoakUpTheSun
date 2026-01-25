@@ -1,15 +1,12 @@
-import type {
-  ILoginForm,
-} from '@/api/login'
 import type { IAuthLoginRes } from '@/api/types/login'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue' // 修复：导入 computed
 import {
+  getWxCode,
   login as _login,
   logout as _logout,
   refreshToken as _refreshToken,
   wxLogin as _wxLogin,
-  getWxCode,
 } from '@/api/login'
 import { isDoubleTokenRes, isSingleTokenRes } from '@/api/types/login'
 import { useUserStore } from './user'
@@ -119,7 +116,7 @@ export const useTokenStore = defineStore(
      * @param loginForm 登录参数
      * @returns 登录结果
      */
-    const login = async (loginForm: ILoginForm) => {
+    const login = async (loginForm: any) => {
       try {
         const res = await _login(loginForm)
         console.log('普通登录-res: ', res)

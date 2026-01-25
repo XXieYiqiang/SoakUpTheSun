@@ -1,12 +1,24 @@
 import type { IAuthLoginRes, ICaptcha, IDoubleTokenRes, IUpdateInfo, IUpdatePassword, IUserInfoRes } from './types/login'
 import { http } from '@/http/http'
 
+
 /**
- * 登录表单
+ * 注册表单
  */
-export interface ILoginForm {
-  username: string
-  password: string
+export interface IRegisterForm {
+  userAccount: string // 账号
+  userPassword: string // 密码
+  userName: string // 用户名
+  userAvatar: string // 头像 base64
+  userProfile: string // 简介
+}
+
+/**
+ * 用户注册
+ * @param data 注册表单
+ */
+export function register(data: IRegisterForm) {
+  return http.post<number>('/user/register', data)
 }
 
 /**
@@ -18,11 +30,27 @@ export function getCode() {
 }
 
 /**
+ * 用户登录表单
+ */
+export interface IUserLoginForm {
+  userAccount: string
+  password: string
+}
+
+/**
  * 用户登录
  * @param loginForm 登录表单
  */
-export function login(loginForm: ILoginForm) {
+export function login(loginForm: any) {
   return http.post<IAuthLoginRes>('/auth/login', loginForm)
+}
+
+/**
+ * 用户登录
+ * @param data 登录表单
+ */
+export function userLogin(data: IUserLoginForm) {
+  return http.post<IAuthLoginRes>('/user/login', data)
 }
 
 /**
@@ -36,15 +64,15 @@ export function refreshToken(refreshToken: string) {
 /**
  * 获取用户信息
  */
-export function getUserInfo() {
-  return http.get<IUserInfoRes>('/user/info')
+export function getUserInfo(username: string) {
+  return http.get<IUserInfoRes>('/user/' + username)
 }
 
 /**
  * 退出登录
  */
 export function logout() {
-  return http.get<void>('/auth/logout')
+  return http.put<void>('/user/logout')
 }
 
 /**
@@ -82,4 +110,44 @@ export function getWxCode() {
  */
 export function wxLogin(data: { code: string }) {
   return http.post<IAuthLoginRes>('/auth/wxLogin', data)
+}
+
+/**
+ * 获取百度语音识别 Access Token
+ */
+export function getBaiduToken(params: {
+  grant_type: string
+  client_id: string
+  client_secret: string
+}) {
+  return uni.request({
+    url: '/audio/oauth/2.0/token',
+    method: 'POST',
+    data: params,
+    header: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  })
+}
+
+/**
+ * 百度语音识别
+ */
+export function recognizeSpeech(data: {
+  format: string
+  rate: number
+  channel: number
+  cuid: string
+  token: string
+  speech: string
+  len: number
+}) {
+  return uni.request({
+    url: '/audio/server_api',
+    method: 'POST',
+    header: {
+      'Content-Type': 'application/json',
+    },
+    data,
+  })
 }

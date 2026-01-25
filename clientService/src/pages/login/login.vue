@@ -43,7 +43,6 @@ function saveCredentials() {
     if (formData.rememberMe) {
       uni.setStorageSync(STORAGE_KEY, {
         phone: formData.phone,
-        password: formData.password,
       })
     }
     else {
@@ -96,31 +95,52 @@ async function handleLogin() {
   if (!validateForm())
     return
 
-  loading.value = true
-  try {
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    saveCredentials()
-    uni.showToast({
-      title: t('login.loginSuccess'),
-      icon: 'success',
-      duration: 2000,
-    })
     setTimeout(() => {
       uni.switchTab({
         url: '/pages/index/index',
       })
     }, 1000)
-  }
-  catch (error) {
-    uni.showToast({
-      title: t('login.loginFailed'),
-      icon: 'none',
-      duration: 2000,
-    })
-  }
-  finally {
-    loading.value = false
-  }
+
+  // loading.value = true
+  // try {
+  //   const res:any = await userLogin({
+  //     userAccount: formData.phone,
+  //     password: formData.password,
+  //   })
+
+  //   if (res.code === 200 || res.code === 0) { // 根据后端实际返回调整
+  //     saveCredentials()
+  //     // 假设 res.data 包含 token 等信息，这里可以保存到 store 或 storage
+  //     // if (res.data?.token) uni.setStorageSync('token', res.data.token)
+
+  //     uni.showToast({
+  //       title: t('login.loginSuccess'),
+  //       icon: 'success',
+  //       duration: 1000,
+  //     })
+  //     setTimeout(() => {
+  //       uni.switchTab({
+  //         url: '/pages/index/index',
+  //       })
+  //     }, 300)
+  //   } else {
+  //     uni.showToast({
+  //       title: res.msg || t('login.loginFailed'),
+  //       icon: 'none',
+  //       duration: 2000,
+  //     })
+  //   }
+  // }
+  // catch (error: any) {
+  //   uni.showToast({
+  //     title: error.message || t('login.loginFailed'),
+  //     icon: 'none',
+  //     duration: 2000,
+  //   })
+  // }
+  // finally {
+  //   loading.value = false
+  // }
 }
 
 function togglePassword() {
@@ -136,10 +156,8 @@ function handleForgotPassword() {
 }
 
 function handleRegister() {
-  uni.showToast({
-    title: t('login.registerDeveloping'),
-    icon: 'none',
-    duration: 2000,
+  uni.navigateTo({
+    url: '/pages/register/register'
   })
 }
 
@@ -177,335 +195,245 @@ function parseVoiceContent(text: string) {
   return { phone, password }
 }
 
-async function handleVoiceLogin() {
-  if (loading.value || isVoiceProcessing.value)
-    return
+import { getBaiduToken, recognizeSpeech, userLogin } from '@/api/login'
+import { H5Recorder } from '@/utils/recorder'
 
+const APIKEY = import.meta.env.VITE_APP_BAIDU_SPEECH_APIKEY
+const SECRETKEY = import.meta.env.VITE_APP_BAIDU_SPEECH_SECRETKEY
+const BAIDU_TOKEN_KEY = 'baidu_access_token'
+
+let voiceTimer: ReturnType<typeof setTimeout> | null = null
+
+// #ifdef H5
+let recorder: H5Recorder | null = null
+// #endif
+
+// #ifdef APP-PLUS
+const recorderManager = uni.getRecorderManager()
+// #endif
+
+async function getBaiduAccessToken() {
+  const savedToken = uni.getStorageSync(BAIDU_TOKEN_KEY)
+  if (savedToken) {
+    return savedToken
+  }
+
+  try {
+    const res: any = await getBaiduToken({
+      grant_type: 'client_credentials',
+      client_id: APIKEY,
+      client_secret: SECRETKEY,
+    })
+
+    if (res.data && res.data.access_token) {
+      uni.setStorageSync(BAIDU_TOKEN_KEY, res.data.access_token)
+      return res.data.access_token
+    }
+    throw new Error('获取百度Token失败')
+  }
+  catch (error) {
+    console.error('getBaiduAccessToken error:', error)
+    throw error
+  }
+}
+
+// #ifdef H5
+async function startH5Recording() {
+  try {
+    recorder = new H5Recorder()
+    await recorder.start()
+
+    isVoiceListening.value = true
+    uni.showToast({
+      title: '正在录音，再次点击停止（30秒自动停止）',
+      icon: 'none',
+    })
+
+    if (voiceTimer)
+      clearTimeout(voiceTimer)
+    voiceTimer = setTimeout(() => {
+      if (isVoiceListening.value) {
+        stopH5Recording()
+        uni.showToast({
+          title: '录音已自动停止',
+          icon: 'none',
+        })
+      }
+    }, 30000)
+  }
+  catch (error: any) {
+    console.error('H5录音失败:', error)
+    uni.showToast({
+      title: error.message || '无法访问麦克风',
+      icon: 'none',
+    })
+    isVoiceListening.value = false
+  }
+}
+
+async function stopH5Recording() {
+  if (voiceTimer) {
+    clearTimeout(voiceTimer)
+    voiceTimer = null
+  }
+
+  if (!recorder) return
+
+  isVoiceListening.value = false
   isVoiceProcessing.value = true
 
   try {
-    // #ifdef H5
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const { base64, len } = await recorder.stop()
+    recorder = null
+    await processVoice(base64, len)
+  }
+  catch (error: any) {
+    console.error('语音识别错误:', error)
+    uni.showToast({
+      title: error.message || t('login.voiceFailed'),
+      icon: 'none',
+    })
+    isVoiceProcessing.value = false
+  }
+}
+// #endif
 
-    if (!SpeechRecognition) {
-      console.log('浏览器不支持语音识别 API')
-      uni.showModal({
-        title: t('login.voiceNotSupported'),
-        content: '当前浏览器不支持语音识别功能。建议使用 Chrome、Edge 或 Safari 浏览器。',
-        showCancel: false,
+// #ifdef APP-PLUS
+function startAppRecording() {
+  isVoiceListening.value = true
+  uni.showToast({
+    title: '正在录音，再次点击停止（30秒自动停止）',
+    icon: 'none',
+  })
+
+  // 监听录音停止
+  recorderManager.onStop(async (res) => {
+    isVoiceListening.value = false
+    if (voiceTimer) {
+      clearTimeout(voiceTimer)
+      voiceTimer = null
+    }
+    
+    isVoiceProcessing.value = true
+    try {
+      const fs = uni.getFileSystemManager()
+      const base64 = fs.readFileSync(res.tempFilePath, 'base64')
+      const fileInfo = await new Promise<UniApp.GetFileInfoSuccess>((resolve, reject) => {
+         uni.getFileInfo({
+            filePath: res.tempFilePath,
+            success: resolve,
+            fail: reject
+         })
       })
-      isVoiceProcessing.value = false
-      return
+      await processVoice(base64 as string, fileInfo.size)
+    } catch (error: any) {
+       console.error('APP录音处理失败:', error)
+       uni.showToast({
+         title: error.message || '录音处理失败',
+         icon: 'none',
+       })
+       isVoiceProcessing.value = false
     }
+  })
 
-    const checkMicrophonePermission = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        stream.getTracks().forEach(track => track.stop())
-        return true
-      }
-      catch (error: any) {
-        console.error('麦克风权限检查失败:', error)
-        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-          uni.showModal({
-            title: '麦克风权限被拒绝',
-            content: '请在浏览器设置中允许麦克风访问，然后重试。',
-            showCancel: false,
-          })
-        }
-        else if (error.name === 'NotFoundError') {
-          uni.showModal({
-            title: '未检测到麦克风',
-            content: '请检查您的设备是否连接了麦克风。',
-            showCancel: false,
-          })
-        }
-        else {
-          uni.showModal({
-            title: '麦克风访问失败',
-            content: `无法访问麦克风: ${error.message}`,
-            showCancel: false,
-          })
-        }
-        return false
-      }
+  // 监听错误
+  recorderManager.onError((err) => {
+    console.error('录音错误:', err)
+    isVoiceListening.value = false
+    if (voiceTimer) {
+      clearTimeout(voiceTimer)
+      voiceTimer = null
     }
+    uni.showToast({
+      title: '录音失败',
+      icon: 'none',
+    })
+  })
 
-    const hasPermission = await checkMicrophonePermission()
-    if (!hasPermission) {
-      isVoiceProcessing.value = false
-      return
-    }
+  recorderManager.start({
+    format: 'pcm', // 百度语音识别支持 pcm
+    sampleRate: 16000, // 采样率 16k
+    numberOfChannels: 1, // 单声道
+  })
 
-    const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    const speechRecognition = new SpeechRecognitionConstructor()
-    speechRecognition.lang = 'zh-CN'
-    speechRecognition.continuous = false
-    speechRecognition.interimResults = true
-    speechRecognition.maxAlternatives = 3
-
-    let recognitionTimeout: any = null
-    let hasReceivedResult = false
-
-    speechRecognition.onstart = () => {
-      console.log('🎤 语音识别开始，请开始说话...')
-      isVoiceListening.value = true
-
-      recognitionTimeout = setTimeout(() => {
-        if (!hasReceivedResult && isVoiceListening.value) {
-          console.log('⏰ 语音识别超时，请重试')
-          try {
-            speechRecognition.stop()
-          }
-          catch (error) {
-            console.error('停止语音识别失败:', error)
-          }
-        }
-      }, 15000)
-    }
-
-    speechRecognition.onresult = (event: any) => {
-      hasReceivedResult = true
-      if (recognitionTimeout) {
-        clearTimeout(recognitionTimeout)
-      }
-
-      const results = event.results
-      const lastResult = results[results.length - 1]
-      const transcript = lastResult[0].transcript
-      const confidence = lastResult[0].confidence
-      const isFinal = lastResult.isFinal
-
-      console.log('==========================================')
-      console.log('🎤 语音识别结果:')
-      console.log(`📝 识别文本: ${transcript}`)
-      console.log(`📊 置信度: ${(confidence * 100).toFixed(2)}%`)
-      console.log(`✅ 是否最终结果: ${isFinal ? '是' : '否（中间结果）'}`)
-      console.log(`📋 所有候选结果:`)
-      
-      for (let i = 0; i < lastResult.length; i++) {
-        console.log(`   ${i + 1}. ${lastResult[i].transcript} (置信度: ${(lastResult[i].confidence * 100).toFixed(2)}%)`)
-      }
-      console.log('==========================================')
-
-      if (isFinal) {
-        const { phone, password } = parseVoiceContent(transcript)
-
-        if (phone && password) {
-          formData.phone = phone
-          formData.password = password
-          uni.showToast({
-            title: t('login.voiceSuccess'),
-            icon: 'success',
-            duration: 2000,
-          })
-        }
-        else {
-          uni.showToast({
-            title: `识别结果: ${transcript}`,
-            icon: 'none',
-            duration: 3000,
-          })
-        }
-      }
-    }
-
-    speechRecognition.onerror = (event: any) => {
-      console.log('==========================================')
-      console.log('❌ 语音识别错误:')
-      console.log(`错误类型: ${event.error}`)
-      console.log(`错误信息: ${event.message}`)
-      console.log('==========================================')
-      
-      if (recognitionTimeout) {
-        clearTimeout(recognitionTimeout)
-      }
-
-      let errorMessage = t('login.voiceFailed')
-
-      switch (event.error) {
-        case 'no-speech':
-          errorMessage = '未检测到语音，请检查：\n1. 麦克风是否正常工作\n2. 说话声音是否足够大\n3. 麦克风是否被其他应用占用'
-          console.log('💡 提示: no-speech 错误通常表示：')
-          console.log('   - 麦克风权限未授予')
-          console.log('   - 麦克风设备不可用')
-          console.log('   - 说话声音太小')
-          console.log('   - 麦克风被静音')
-          break
-        case 'audio-capture':
-          errorMessage = '无法访问麦克风，请检查权限设置'
-          console.log('💡 提示: 请确保已授予麦克风权限')
-          break
-        case 'not-allowed':
-          errorMessage = '麦克风权限被拒绝，请在浏览器设置中允许访问'
-          console.log('💡 提示: 需要在浏览器中手动授予麦克风权限')
-          break
-        case 'network':
-          errorMessage = '网络连接错误，请检查网络'
-          console.log('💡 提示: 语音识别需要网络连接')
-          break
-        case 'aborted':
-          errorMessage = '语音识别已取消'
-          console.log('💡 提示: 识别被手动停止')
-          break
-        case 'service-not-allowed':
-          errorMessage = '语音识别服务不可用，请检查网络连接'
-          console.log('💡 提示: 可能是网络问题或浏览器不支持')
-          break
-        default:
-          errorMessage = `语音识别错误: ${event.error}`
-          console.log('💡 提示: 未知错误类型')
-      }
-
-      uni.showModal({
-        title: '语音识别失败',
-        content: errorMessage,
-        showCancel: false,
+  if (voiceTimer)
+    clearTimeout(voiceTimer)
+  voiceTimer = setTimeout(() => {
+    if (isVoiceListening.value) {
+      stopAppRecording()
+      uni.showToast({
+        title: '录音已自动停止',
+        icon: 'none',
       })
     }
+  }, 30000)
+}
 
-    speechRecognition.onend = () => {
-      console.log('==========================================')
-      console.log('🏁 语音识别结束')
-      console.log(`是否收到结果: ${hasReceivedResult ? '是' : '否'}`)
-      console.log(`是否正在监听: ${isVoiceListening.value ? '是' : '否'}`)
-      console.log('==========================================')
-      
-      if (recognitionTimeout) {
-        clearTimeout(recognitionTimeout)
-      }
-      isVoiceListening.value = false
-      isVoiceProcessing.value = false
-    }
+function stopAppRecording() {
+  recorderManager.stop()
+}
+// #endif
 
-    uni.showModal({
-      title: '语音登录提示',
-      content: '请清晰地说出您的账号和密码，例如：\n\n"账号123456密码789"\n\n注意：\n• 请确保麦克风已授权\n• 请在安静环境下使用\n• 请清晰大声地说话',
-      showCancel: false,
-      confirmText: '开始识别',
+async function processVoice(base64: string, len: number) {
+  try {
+    const token = await getBaiduAccessToken()
+    const cuid = uni.getSystemInfoSync().deviceId || 'soak-user'
+
+    const res: any = await recognizeSpeech({
+      format: 'pcm',
+      rate: 16000,
+      channel: 1,
+      cuid,
+      token,
+      speech: base64,
+      len,
     })
 
-    setTimeout(() => {
-      try {
-        speechRecognition.start()
-        console.log('✅ 语音识别已启动')
-      }
-      catch (error) {
-        console.error('❌ 启动语音识别失败:', error)
-        uni.showToast({
-          title: '启动语音识别失败，请重试',
-          icon: 'none',
-          duration: 2000,
-        })
-        isVoiceProcessing.value = false
-      }
-    }, 500)
-    // #endif
+    console.log('Baidu ASR Result:', res.data)
 
-    // #ifdef APP-PLUS
-    const checkAppPermission = async () => {
-      try {
-        const setting = await uni.getSetting()
-        if (!setting.authSetting['scope.record']) {
-          const authorizeResult = await uni.authorize({
-            scope: 'scope.record',
-          })
-          if (!authorizeResult[1].authSetting['scope.record']) {
-            return false
-          }
-        }
-        return true
-      }
-      catch (error) {
-        return false
-      }
-    }
-
-    const appHasPermission = await checkAppPermission()
-    if (!appHasPermission) {
-      uni.showModal({
-        title: t('login.voicePermissionRequest'),
-        content: t('login.voicePermissionDenied'),
-        confirmText: t('login.voiceOpenSettings'),
-        cancelText: t('login.voiceAuthorize'),
-        success: (res) => {
-          if (res.confirm) {
-            uni.openSetting()
-          }
-        },
-      })
-      return
-    }
-
-    const plusSpeech = (plus as any).speech
-    console.log('🚀 ~ handleVoiceLogin ~ plusSpeech:', plusSpeech)
-    if (!plusSpeech) {
-      uni.showToast({
-        title: t('login.voiceNotSupported'),
-        icon: 'none',
-        duration: 2000,
-      })
-      return
-    }
-
-    const speechRecognizer = plusSpeech.createSpeechRecognizer()
-    speechRecognizer.start()
-
-    isVoiceListening.value = true
-
-    speechRecognizer.onresult = (event: any) => {
-      const transcript = event.result
-      const { phone, password } = parseVoiceContent(transcript)
-
-      if (phone && password) {
-        formData.phone = phone
-        formData.password = password
+    if (res.data && res.data.err_no === 0 && res.data.result) {
+      const text = res.data.result.join('')
+      const { phone, password } = parseVoiceContent(text)
+      if (phone || password) {
+        if (phone)
+          formData.phone = phone
+        if (password)
+          formData.password = password
         uni.showToast({
           title: t('login.voiceSuccess'),
           icon: 'success',
-          duration: 2000,
         })
       }
       else {
         uni.showToast({
-          title: t('login.voiceParseFailed'),
+          title: `识别结果: ${text} (未匹配到账号密码)`,
           icon: 'none',
-          duration: 2000,
+          duration: 3000,
         })
       }
-
-      speechRecognizer.stop()
-      isVoiceListening.value = false
-      isVoiceProcessing.value = false
     }
-
-    speechRecognizer.onerror = (event: any) => {
-      uni.showToast({
-        title: t('login.voiceFailed'),
-        icon: 'none',
-        duration: 2000,
-      })
-      speechRecognizer.stop()
-      isVoiceListening.value = false
-      isVoiceProcessing.value = false
+    else {
+      throw new Error(res.data?.err_msg || '识别失败')
     }
-
-    uni.showToast({
-      title: t('login.voiceLoginTip'),
-      icon: 'none',
-      duration: 2000,
-    })
-    // #endif
-  }
-  catch (error) {
-    uni.showToast({
-      title: t('login.voiceNotSupported'),
-      icon: 'none',
-      duration: 2000,
-    })
+  } catch (error: any) {
+    throw error
+  } finally {
     isVoiceProcessing.value = false
-    isVoiceListening.value = false
   }
+}
+
+async function handleVoiceLogin() {
+  if (loading.value || isVoiceProcessing.value)
+    return
+
+  // #ifdef H5
+  if (isVoiceListening.value) {
+    stopH5Recording()
+    return
+  }
+  await startH5Recording()
+  return
+  // #endif
 }
 </script>
 
@@ -621,7 +549,7 @@ async function handleVoiceLogin() {
           </text>
         </view>
 
-        <view class="register-link">
+        <view class="register-link" @click="handleRegister">
           <text class="register-text">
             {{ t('login.register') }}
           </text>

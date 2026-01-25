@@ -7,7 +7,7 @@
 - 使用最新的前端技术栈
 - 内置约定式路由、layout布局、请求封装等功能
 - 无需依赖 HBuilderX，支持命令行开发
-- 使用uViewPro组件库开发
+- 使用uViewPro组件库开发(mdc:[package.json](https://uviewpro.cn/zh/components/cell.html))
 
 ## 核心配置文件
 - [package.json](mdc:package.json) - 项目依赖和脚本配置

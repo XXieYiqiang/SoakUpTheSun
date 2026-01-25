@@ -149,7 +149,6 @@ export default defineConfig(({ command, mode }) => {
       openDevTools(),
     ],
     define: {
-      __VITE_APP_PROXY__: JSON.stringify(VITE_APP_PROXY_ENABLE),
     },
     css: {
       postcss: {
@@ -173,16 +172,27 @@ export default defineConfig(({ command, mode }) => {
       hmr: true,
       port: Number.parseInt(VITE_APP_PORT, 10),
       // 仅 H5 端生效，其他端不生效（其他端走build，不走devServer)
-      proxy: JSON.parse(VITE_APP_PROXY_ENABLE)
-        ? {
-            [VITE_APP_PROXY_PREFIX]: {
+      proxy: {
+              // 百度语音鉴权
+            '/api/audio/oauth/2.0/token': {
+              target: 'https://aip.baidubce.com',
+              changeOrigin: true,
+              rewrite: path => path.replace('/api/audio', '/')
+            },
+            // 百度语音识别
+            '/api/audio/server_api': {
+              target: 'https://vop.baidu.com',
+              changeOrigin: true,
+              rewrite: path => path.replace('/api/audio', '/')
+            },
+            '^/api': {
               target: VITE_SERVER_BASEURL,
               changeOrigin: true,
               // 后端有/api前缀则不做处理，没有则需要去掉
-              rewrite: path => path.replace(new RegExp(`^${VITE_APP_PROXY_PREFIX}`), ''),
-            },
-          }
-        : undefined,
+              rewrite: path => path.replace(new RegExp(`^${VITE_APP_PROXY_PREFIX}`), '')
+            }
+
+          },
     },
     esbuild: {
       drop: VITE_DELETE_CONSOLE === 'true' ? ['console', 'debugger'] : [],

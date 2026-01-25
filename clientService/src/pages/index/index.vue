@@ -137,12 +137,12 @@ async function startCamera() {
         video: firstCam.deviceId
           ? {
               deviceId: { exact: firstCam.deviceId },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
             }
           : {
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
             },
         audio: false,
       }
@@ -301,11 +301,55 @@ async function stopCamera() {
   isCameraActive.value = false
 }
 
+import { getPictureAnalysisResponse, uploadPictureAnalysis } from '@/api/index'
+
 function pushCapturedImage(imageData: string) {
   capturedImages.value.unshift(imageData)
   if (capturedImages.value.length > 10) {
     capturedImages.value.pop()
   }
+
+  // 自动上传分析
+  uploadPictureAnalysis(imageData, '自动截取图片分析').then(res => {
+    // res.data 假设包含 id 字段，根据实际接口返回调整
+    // 假设 res 结构为 { code: 0, data: { id: 123, ... } } 或 { code: 0, data: 123 }
+    // 如果直接返回 id，则 pictureId = res.data
+    // 如果返回对象，则 pictureId = res.data.id
+    
+    // 打印一下以便调试
+    console.log('Upload response:', res)
+    
+    // 这里假设 res.data 是包含 id 的对象，或者根据用户之前的描述 "data": { "id": ... }
+    // 但用户之前提供的用户信息接口是 data: { id: ... }
+    // 对于上传接口，用户没有提供具体返回，但通常会返回 ID
+    
+    let pictureId = null
+    if (res && res.data) {
+       if (typeof res.data === 'object' && res.data.id) {
+         pictureId = res.data.id
+       } else if (typeof res.data === 'string' || typeof res.data === 'number') {
+         pictureId = res.data
+       }
+    }
+    
+    if (pictureId) {
+      console.log('Got pictureId:', pictureId)
+      // 获取分析结果
+      getPictureAnalysisResponse(pictureId).then(analysisRes => {
+         console.log('Analysis result:', analysisRes)
+         if (analysisRes.code === 200 || analysisRes.code === 0) {
+             uni.showToast({
+               title: '分析结果已获取',
+               icon: 'success',
+               duration: 2000
+             })
+             // 这里可以处理 analysisRes.data，例如弹窗显示或播报
+         }
+      })
+    }
+  }).catch(err => {
+    console.error('图片上传分析失败:', err)
+  })
 
   uni.showToast({
     title: '截取成功',
@@ -328,46 +372,20 @@ function captureImage() {
     if (!ctx) {
       return
     }
-
     const vw = (video as any).videoWidth
     const vh = (video as any).videoHeight
     if (!vw || !vh) {
       console.log('视频画面未准备好，暂不截取', { vw, vh })
       return
     }
-    const cw = (video as any).clientWidth || (video as any).offsetWidth || vw
-    const ch = (video as any).clientHeight || (video as any).offsetHeight || vh
-    ;(canvas as any).width = cw
-    ;(canvas as any).height = ch
-    let fit = ''
-    try {
-      fit = typeof window !== 'undefined' ? window.getComputedStyle(video).objectFit : ''
-    }
-    catch {}
-    if (fit === 'contain') {
-      const scale = Math.min(cw / vw, ch / vh)
-      const dw = Math.round(vw * scale)
-      const dh = Math.round(vh * scale)
-      const dx = Math.round((cw - dw) / 2)
-      const dy = Math.round((ch - dh) / 2)
-      ctx.clearRect(0, 0, cw, ch)
-      ctx.drawImage(video, 0, 0, vw, vh, dx, dy, dw, dh)
-    }
-    else if (fit === 'cover' || !fit) {
-      const scale = Math.max(cw / vw, ch / vh)
-      const sw = Math.round(cw / scale)
-      const sh = Math.round(ch / scale)
-      const sx = Math.round((vw - sw) / 2)
-      const sy = Math.round((vh - sh) / 2)
-      ctx.clearRect(0, 0, cw, ch)
-      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch)
-    }
-    else {
-      ctx.clearRect(0, 0, cw, ch)
-      ctx.drawImage(video, 0, 0, vw, vh, 0, 0, cw, ch)
-    }
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+    ;(canvas as any).width = vw * dpr
+    ;(canvas as any).height = vh * dpr
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, vw, vh)
+    ctx.drawImage(video, 0, 0, vw / dpr, vh / dpr)
 
-    const imageData = (canvas as any).toDataURL('image/jpeg', 0.8)
+    const imageData = (canvas as any).toDataURL('image/jpeg', 1)
     pushCapturedImage(imageData)
     // #endif
 

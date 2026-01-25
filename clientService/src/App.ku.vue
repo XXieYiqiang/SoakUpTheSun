@@ -4,6 +4,17 @@ import FgTabbar from '@/tabbar/index.vue'
 import { isPageTabbar } from './tabbar/store'
 import { currRoute } from './utils'
 
+import { useTheme } from 'uview-pro';
+
+const { themes, currentTheme , setTheme} = useTheme();
+const color = themes.value[0].color
+color.primary = '#5d9997'
+color.primaryDark = '#4a7a79'
+color.primaryDisabled = '#afccd0'
+color.primaryLight = '#e2edec'
+
+setTheme('pur')
+
 const isCurrentPageTabbar = ref(true)
 onShow(() => {
   console.log('App.ku.vue onShow', currRoute())
@@ -28,14 +39,15 @@ defineExpose({
 </script>
 
 <template>
-  <view>
-    <!-- 这个先隐藏了，知道这样用就行 -->
-    <view class="hidden text-center">
-      {{ helloKuRoot }}，这里可以配置全局的东西
+  <u-config-provider :themes="themes">
+    <view>
+      <view class="hidden text-center">
+        {{ helloKuRoot }}，这里可以配置全局的东西
+      </view>
+
+      <KuRootView />
+
+      <FgTabbar v-if="isCurrentPageTabbar" />
     </view>
-
-    <KuRootView />
-
-    <FgTabbar v-if="isCurrentPageTabbar" />
-  </view>
+  </u-config-provider>
 </template>
