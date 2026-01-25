@@ -1,6 +1,9 @@
 package org.hgc.suts.user.dto.resp;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 /**
  * 用户返回参数响应
@@ -28,6 +31,23 @@ public class UserRespDTO {
      * 头像
      */
     private String userAvatar;
+
+    /**
+     * 性别 1/0 男/女
+     */
+    private Integer sex;
+
+    /**
+     * 生日
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private LocalDateTime birthday;
+
+    /**
+     * 经纬度
+     */
+    private String location;
+
 
     /**
      * 简介

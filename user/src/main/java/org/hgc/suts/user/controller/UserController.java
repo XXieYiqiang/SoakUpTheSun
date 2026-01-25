@@ -3,6 +3,7 @@ package org.hgc.suts.user.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hgc.suts.user.common.result.Result;
 import org.hgc.suts.user.common.web.Results;
 import org.hgc.suts.user.dto.req.UserLoginReqDTO;
@@ -13,8 +14,13 @@ import org.hgc.suts.user.dto.resp.UserRespDTO;
 import org.hgc.suts.user.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 用户控制层
+ */
+
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class UserController {
     private final UserService userService;
 
@@ -32,6 +38,7 @@ public class UserController {
      */
     @PostMapping("/api/user/login")
     public Result<UserLoginRespDTO> login(@RequestBody UserLoginReqDTO requestParam) {
+        log.info("login request: {}", requestParam);
         return Results.success(userService.login(requestParam));
     }
 

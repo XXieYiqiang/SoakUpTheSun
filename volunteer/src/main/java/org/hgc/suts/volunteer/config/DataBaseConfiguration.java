@@ -44,6 +44,7 @@ public class DataBaseConfiguration {
             strictInsertFill(metaObject, "createTime", Date::new, Date.class);
             strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
             strictInsertFill(metaObject, "delFlag", () -> 0, Integer.class);
+            strictInsertFill(metaObject, "isCalculated", () -> 0, Integer.class);
         }
 
         @Override

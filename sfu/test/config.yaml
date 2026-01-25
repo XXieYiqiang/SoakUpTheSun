@@ -1,0 +1,8 @@
+log:
+  director: log
+  retentionDay: 7
+  logInConsole: true
+  levels: info
+  format: json   # 输出格式:json,console
+  levelEncode: LowercaseColorLevelEncoder # 日志级别编码:LowercaseColorLevelEncoder,LowercaseLevelEncoder,UppercaseColorLevelEncoder,UppercaseLevelEncoder
+  showLine: true

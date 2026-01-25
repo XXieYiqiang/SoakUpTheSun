@@ -1,18 +1,34 @@
 server:
   port: 10013
 spring:
+  application:
+    name: volunteer
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-    username: root
+    url: jdbc:mysql://47.120.60.61:3306/suts?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    username: suts
     password: 123456
   data:
     redis:
-      host: 127.0.0.1
+      host: 47.120.60.61
       port: 6379
-      password: redis
+      password: 123456
       timeout: 50000
+  elasticsearch:
+    uris: http://localhost:9200
+    username: elastic
+    password: 123456
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
 
-
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: suts_Volunteer-service_common-message-execute_pg
+    send-message-timeout: 2000
+    retry-times-when-send-failed: 1
+    retry-times-when-send-async-failed: 1
 
 
 #http://localhost:10010/doc.html
@@ -20,3 +36,18 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+
+volunteer:
+  match:
+    # 返回活跃用户数量
+    target-count: 4
+    # 热池缺人，则返回活跃用户的倍数
+    cold-user-multiplier: 5
+    # 活跃池中的
+    active-pool-ttl-seconds: 1800
+    # 冷却时间
+    cooldown-seconds: 60
+  # 批次大小
+  task:
+   score:
+    batch-size: 2000

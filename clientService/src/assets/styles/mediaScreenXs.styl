@@ -1,0 +1,439 @@
+// 此样式文件仅对页面宽度小于 768px 时生效
+@import '~_a/styles/varibles.styl';
+
+@media screen and (max-width: 768px) {
+  #app {
+    // 顶部导航栏
+    .header-wrapper {
+      padding: 0 8px;
+      .logo {
+        display: none;
+      }
+      .logo-xs {
+        display: inline-block;
+        margin: 12px 8px;
+        height: 24px;
+        cursor: pointer;
+      }
+      .top-menu-list {
+        .el-menu-item, .el-submenu {
+          height: 48px;
+          line-height: 48px;
+          padding: 0 12px;
+          .el-submenu__title {
+            height: 48px;
+            line-height: 48px;
+            padding: 0;
+          }
+        }
+        .external-link {
+          a {
+            padding: 0;
+          }
+        }
+      }
+    }
+    // 主体内容区域
+    .main-content {
+      min-height: calc(100vh - 49px) !important;
+      // 登录页面 & 注册页面
+      &.login-wrapper, &.register-wrapper {
+        padding-top: 32px;
+        .form-wrapper {
+          max-width: 375px;
+          width: 80%;
+          .drag_verify {
+            max-width: 375px !important;
+            width: 100% !important;
+            .dv_text {
+              width: 100% !important;
+            }
+          }
+        }
+        .drag-verify-modal {
+          position: fixed;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          left: 0;
+          overflow: auto;
+          background: rgba(0, 0, 0, 0.5);
+          width: 100%;
+          height: 100%;
+          z-index: 2010;
+          text-align: center;
+          display: flex;
+          align-items: center;
+          .drag_verify {
+            margin: 0 auto;
+          }
+        }
+      }
+      // 首页
+      &.home-wrapper {
+        // 轮播图
+        .el-carousel {
+          .el-carousel__container {
+            height: 400px !important;
+            .carosel-inner {
+              .carousel-wrap {
+                .carousel-caption {
+                  position: relative;
+                  top: 0;
+                  margin: 0 auto;
+                  padding-top: 32px;
+                  .bounce {
+                    margin-bottom: 16px;
+                    font-size: 22px;
+                  }
+                  .list {
+                    padding: 8px 8px 48px 8px;
+                    font-size: 14px;
+                  }
+                  .version-wrapper {
+                    margin-top: 16px;
+                    .version-item {
+                      margin: 0 !important;
+                    }
+                  }
+                }
+                .carousel-img {
+                  z-index: -1;
+                  opacity: 0.5;
+                  width: 100%;
+                  height: 100%;
+                  text-align: center;
+                  img {
+                    height: 100%;
+                  }
+                }
+              }
+            }
+          }
+        }
+        .notice-wrapper {
+          .notice-inner {
+            width: 96%;
+            .notice-list {
+              .create-time {
+                display: none;
+              }
+            }
+            .change-btn, .page-count {
+              display: none;
+            }
+          }
+        }
+        // 功能说明
+        .function-wrapper {
+          margin: 0 auto;
+          width: 90%;
+          .function-title {
+            padding: 24px 0;
+            font-size: 22px;
+          }
+          .function-list {
+            padding: 0 16px;
+            display: block;
+            .function-item {
+              width: 100%;
+              .function-link {
+                padding: 16px;
+                display: flex;
+                align-items: center;
+                .img-wrapper {
+                  width: 80px;
+                  height: 80px;
+                  .img {
+                    width: 50px;
+                    height: 50px;
+                  }
+                }
+                .content {
+                  margin-top: 0;
+                  flex: 1;
+                  text-align: left;
+                  padding: 0 0 0 24px;
+                  .title {
+                    margin-bottom: 8px;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      &.notice-detail-wrapper {
+        .notice-detail-inner {
+          width: 96%;
+        }
+      }
+      // 网盘页面
+      &.file-wrapper {
+        .el-container {
+          .side-menu-wrapper {
+            position: absolute;
+            padding-right: 0;
+            .aside-title {
+              background: linear-gradient(to right, $Primary, #66b1ff);
+              left: 0;
+              width: 18px;
+              .icon {
+                font-size: 16px;
+              }
+            }
+            .storage-wrapper {
+              width: 100%;
+            }
+          }
+          // 列表模式
+          .file-list-wrapper {
+            .el-header {
+              .operation-menu-wrapper {
+                flex-wrap: wrap;
+                &.file-type-0 {
+                  height: 96px !important;
+                }
+                .el-button {
+                  padding-right: 8px;
+                  padding-left: 8px;
+                }
+                .batch-operate-group {
+                  .el-button-group {
+                    display: flex;
+                  }
+                }
+                .select-file-input {
+                  margin-top: 8px;
+                }
+              }
+            }
+            .file-table-wrapper {
+              margin: 2px -16px 0 -8px;
+              .file-type-0 {
+                height: calc(100vh - 218px) !important;
+                .el-table__body-wrapper {
+                  height: calc(100vh - 260px) !important;
+                }
+              }
+              .file-icon-column {
+                .cell {
+                  padding: 0;
+                }
+              }
+              .file-name {
+                font-size: 16px;
+              }
+              .file-info {
+                color: $SecondaryText;
+                .file-size {
+                  margin-left: 4px;
+                }
+              }
+              .file-operate {
+                transform: rotate(90deg);
+              }
+            }
+            .pagination-wrapper {
+              height: 32px;
+              line-height: 32px;
+              text-align: right;
+              font-size: 14px;
+              .current-page-count {
+                left: 0;
+              }
+              .el-pagination {
+                .btn-prev {
+                  padding-right: 6px;
+                }
+                .btn-next {
+                  padding-left: 6px;
+                }
+                .el-pagination__jump {
+                  margin-left: 0;
+                }
+              }
+            }
+          }
+          // 网格模式
+          .file-grid-wrapper {
+            margin: 0 -16px 0 -8px;
+            .file-list {
+              height: calc(100vh - 224px);
+              padding-bottom: 8px;
+              padding-left: 8px;
+              align-items: initial;
+              .file-item {
+                margin: 8px 8px 0 0;
+                border-radius: 4px;
+                padding: 4px 8px;
+                box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.1);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: space-between;
+                .file-name {
+                  height: auto;
+                  line-height: 20px;
+                  overflow: initial;
+                  text-overflow: initial;
+                  -webkit-line-clamp: initial;
+                  flex: 1;
+                  font-size: 14px;
+                }
+                .file-operate {
+                  margin-top: 8px;
+                  height: 20px;
+                  line-height: 20px;
+                  align-self: flex-end;
+                }
+              }
+            }
+          }
+        }
+      }
+      // 查看分享页面
+      &.share-wrapper {
+        .share-file-wrapper {
+          .file-table-wrapper {
+            margin: 2px -16px 0 -8px;
+            .file-icon-column {
+              .cell {
+                padding: 0;
+              }
+            }
+            .file-name {
+              font-size: 16px;
+            }
+            .file-info {
+              color: $SecondaryText;
+              .file-size {
+                margin-left: 4px;
+              }
+            }
+          }
+        }
+      }
+    }
+    // 页面底部栏
+    .footer-wrapper {
+      flex-direction: column;
+      .copy-right-wrapper, .join-us {
+        width: 100%;
+        padding: 8px 16px;
+        @media screen and (max-width: 520px) {
+          flex-direction: column;
+          text-align: center;
+        }
+      }
+      .copy-right-wrapper {
+        .logo {
+          width: 160px;
+        }
+      }
+      .join-us {
+        .desc {
+          font-size: 14px;
+        }
+        .join-list {
+          margin-top: 8px;
+          justify-content: center;
+        }
+      }
+    }
+  }
+  // 对话框
+  .el-dialog__wrapper {
+    .el-dialog {
+      border-radius: 8px;
+      width: 80% !important;
+    }
+    // 文件详情对话框
+    &.file-info-dialog {
+      .el-dialog__body {
+        padding: 16px;
+      }
+      .file-info-form {
+        .el-form-item {
+          .el-form-item__label {
+            padding-right: 8px;
+          }
+          .el-form-item__content {
+            .el-input__inner {
+              padding: 0;
+            }
+          }
+        }
+      }
+    }
+  }
+  // 消息提示
+  .el-message {
+    top: 50px !important;
+    max-width: 480px !important;
+    width: 80% !important;
+    min-width: 50% !important;
+  }
+  // 上传组件
+  .upload-file-wrapper {
+    @media screen and (max-width: 520px) {
+      width: 100%;
+      right: 0 !important;
+      bottom: 0 !important;
+      .uploader.uploader-app {
+        width: 100% !important;
+      }
+    }
+  }
+  // 图片预览组件
+  .img-preview-wrapper {
+    .tip-wrapper {
+      display: none !important;
+    }
+    .pre-icon {
+      left: 0 !important;
+    }
+    .next-icon {
+      right: 0 !important;
+    }
+    .zoom-bar {
+      bottom: 32px !important;
+      width: 80% !important;
+    }
+  }
+  // 音频预览组件
+  .audio-preview-wrapper {
+    @media screen and (max-width: 520px) {
+      right: calc(50vw - 150px) !important;
+    }
+  }
+  // markdown 预览组件
+  .markdown-preview-wrapper {
+    .tip-wrapper {
+      padding: 0 16px !important;
+    }
+    .tool-wrapper {
+      .text-wrapper {
+        margin-left: 8px !important;
+      }
+    }
+  }
+  // 日期组件
+  .el-date-picker.has-sidebar.has-time {
+    width: 350px !important;
+    .el-picker-panel__body-wrapper {
+      .el-picker-panel__sidebar {
+        width: 56px;
+      }
+      .el-picker-panel__sidebar+.el-picker-panel__body {
+        margin-left: 56px;
+        .el-date-picker__header {
+          margin: 8px;
+        }
+        .el-picker-panel__content {
+          margin: 8px 0;
+        }
+      }
+    }
+  }
+}
