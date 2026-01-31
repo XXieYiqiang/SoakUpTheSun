@@ -19,6 +19,7 @@ import org.hgc.suts.picture.common.constant.RedisCacheConstant;
 import org.hgc.suts.picture.common.tensentCos.CosManager;
 import org.hgc.suts.picture.mq.base.MessageWrapper;
 import org.hgc.suts.picture.mq.event.UploadPictureAnalysisEvent;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -38,7 +39,8 @@ public class PictureAnalysisConsumer implements RocketMQListener<MessageWrapper<
     private final CosManager cosManager;
     private final StringRedisTemplate stringRedisTemplate;
     // py端，进行场景识别地址
-    private final String aiApiUrl = "http://127.0.0.1:8000/vision-qa/qa";
+    @Value("${picture.ai.picture-analysis-url}")
+    private final String aiApiUrl = "";
     @Override
     public void onMessage(MessageWrapper<UploadPictureAnalysisEvent> messageWrapper) {
         // 开头打印日志，平常可 Debug 看任务参数，线上可报平安（比如消息是否消费，重新投递时获取参数等）

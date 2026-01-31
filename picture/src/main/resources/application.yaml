@@ -46,3 +46,6 @@ picture:
     max-size: 10485760000
     # 空间图片最大数量
     max-count: 10000
+  ai:
+    picture-analysis-url: http://127.0.0.1:20000/api/vision-qa/qa
+    video-frame-url: http://127.0.0.1:20000/risk/assess-file
