@@ -43,7 +43,7 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
         // 3. 传递给后端拦截器
         if (StrUtil.isNotBlank(token)) {
             ServerHttpRequest newRequest = request.mutate()
-                    .header("Authorization", token)
+                    .header("token", token)
                     .build();
             return chain.filter(exchange.mutate().request(newRequest).build());
         }
