@@ -7,10 +7,18 @@ import {
 
 // 初始化状态
 const userInfoState: IUserInfoRes = {
-  userId: -1,
-  username: '',
-  nickname: '',
-  avatar: '/static/images/default-avatar.png',
+  id: -1,
+  userAccount: '',
+  userName: '',
+  userAvatar: '/static/images/default-avatar.png',
+  sex: 0,
+  birthday: '',
+  location: '',
+  userProfile: '',
+  userRole: '',
+  editTime: '',
+  createTime: '',
+  updateTime: '',
 }
 
 export const useUserStore = defineStore(
@@ -22,14 +30,14 @@ export const useUserStore = defineStore(
     const setUserInfo = (val: IUserInfoRes) => {
       console.log('设置用户信息', val)
       // 若头像为空 则使用默认头像
-      if (!val.avatar) {
-        val.avatar = userInfoState.avatar
+      if (!val.userAvatar) {
+        val.userAvatar = userInfoState.userAvatar
       }
       userInfo.value = val
     }
-    const setUserAvatar = (avatar: string) => {
-      userInfo.value.avatar = avatar
-      console.log('设置用户头像', avatar)
+    const setUserAvatar = (userAvatar: string) => {
+      userInfo.value.userAvatar = userAvatar
+      console.log('设置用户头像', userAvatar)
       console.log('userInfo', userInfo.value)
     }
     // 删除用户信息
@@ -42,7 +50,12 @@ export const useUserStore = defineStore(
      * 获取用户信息
      */
     const fetchUserInfo = async () => {
-      const res = await getUserInfo()
+      const saved = uni.getStorageSync('login_credentials')
+      const username = saved?.phone || saved?.userAccount || userInfo.value.userAccount
+      if (!username) {
+        return userInfo.value
+      }
+      const res = await getUserInfo(username)
       setUserInfo(res)
       return res
     }

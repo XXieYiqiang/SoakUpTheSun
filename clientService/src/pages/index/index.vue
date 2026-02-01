@@ -21,6 +21,61 @@ const capturedImages = ref<string[]>([])
 const captureInterval = ref<any>(null)
 const stream = ref<any>(null)
 const livePusherContext = ref<any>(null)
+const isGalleryOpen = ref(false)
+const h5ResizeHandler = ref<((ev: UIEvent) => void) | null>(null)
+
+function getH5CameraTarget() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return { width: 1280, height: 720, aspectRatio: 16 / 9 }
+  }
+  const el = document.querySelector('.camera-container') as HTMLElement | null
+  const rect = el?.getBoundingClientRect()
+  const dpr = window.devicePixelRatio || 1
+  const cssW = rect?.width || window.innerWidth || 375
+  const cssH = rect?.height || window.innerHeight || 667
+  const width = Math.max(320, Math.round(cssW * dpr))
+  const height = Math.max(240, Math.round(cssH * dpr))
+  const aspectRatio = cssW > 0 && cssH > 0 ? cssW / cssH : 16 / 9
+  return { width, height, aspectRatio }
+}
+
+async function applyH5Constraints() {
+  // #ifdef H5
+  const currentStream = stream.value as MediaStream | null
+  if (!currentStream)
+    return
+  const videoTrack = currentStream.getVideoTracks?.()?.[0]
+  if (!videoTrack)
+    return
+  const { width, height, aspectRatio } = getH5CameraTarget()
+  try {
+    await videoTrack.applyConstraints({
+      width: { ideal: width },
+      height: { ideal: height },
+      aspectRatio: { ideal: aspectRatio },
+    })
+  }
+  catch {}
+  // #endif
+}
+
+async function handleShutterClick() {
+  if (!isCameraActive.value) {
+    await startCamera()
+    return
+  }
+  if (isCapturing.value) {
+    stopCapture()
+    return
+  }
+  startCapture()
+}
+
+function handleShutterLongpress() {
+  if (isCameraActive.value) {
+    stopCamera()
+  }
+}
 
 function unwrapRefEl(val: any) {
   return val && val.$el ? val.$el : val
@@ -122,6 +177,8 @@ async function startCamera() {
     // #ifdef H5
     let cameraStream: MediaStream | null = null
     try {
+      await nextTick()
+      const target = getH5CameraTarget()
       const devices = await navigator.mediaDevices.enumerateDevices()
       const cameras = devices.filter(d => d.kind === 'videoinput')
       if (cameras.length === 0) {
@@ -137,12 +194,17 @@ async function startCamera() {
         video: firstCam.deviceId
           ? {
               deviceId: { exact: firstCam.deviceId },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
+              width: { ideal: target.width },
+              height: { ideal: target.height },
+              aspectRatio: { ideal: target.aspectRatio },
+              frameRate: { ideal: 30, max: 60 },
             }
           : {
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
+              width: { ideal: target.width },
+              height: { ideal: target.height },
+              aspectRatio: { ideal: target.aspectRatio },
+              frameRate: { ideal: 30, max: 60 },
+              facingMode: { ideal: 'environment' },
             },
         audio: false,
       }
@@ -187,6 +249,14 @@ async function startCamera() {
       ;(videoEl as any).playsInline = true
       videoEl.autoplay = true
       ;(videoEl as any).srcObject = cameraStream
+      await applyH5Constraints()
+      if (!h5ResizeHandler.value && typeof window !== 'undefined') {
+        const handler = () => {
+          applyH5Constraints()
+        }
+        h5ResizeHandler.value = handler
+        window.addEventListener('resize', handler)
+      }
       if (typeof videoEl.play === 'function') {
         try {
           await videoEl.play()
@@ -282,6 +352,10 @@ async function stopCamera() {
   stopCapture()
 
   // #ifdef H5
+  if (h5ResizeHandler.value && typeof window !== 'undefined') {
+    window.removeEventListener('resize', h5ResizeHandler.value)
+    h5ResizeHandler.value = null
+  }
   if (stream.value) {
     stream.value.getTracks().forEach((track: any) => track.stop())
     stream.value = null
@@ -502,7 +576,8 @@ onUnload(() => {
   <view class="index-page">
     <view class="safe-area-inset-top" />
 
-    <view class="camera-container">
+    <view class="camera-card">
+      <view class="camera-container">
       <!-- #ifdef H5 -->
       <video
         id="cameraVideo"
@@ -532,120 +607,128 @@ onUnload(() => {
         :beauty="0"
       />
       <!-- #endif -->
-    </view>
-
-    <view class="control-panel">
-      <view class="status-bar">
-        <view class="status-item">
-          <view
-            class="status-dot"
-            :class="{ active: isCameraActive }"
-          />
-          <text class="status-text">
-            {{ isCameraActive ? '摄像头运行中' : '摄像头已关闭' }}
-          </text>
-        </view>
-        <view class="status-item">
-          <view
-            class="status-dot"
-            :class="{ active: isCapturing }"
-          />
-          <text
-            v-if="isCapturing"
-            class="status-text"
-          >
-            自动截取中 ({{ captureCountdown }}s)
-          </text>
-          <text
-            v-else
-            class="status-text"
-          >
-            自动截取已停止
-          </text>
-        </view>
       </view>
 
-      <view class="button-group">
-        <u-button
-          type="success"
-          size="mini"
-          :disabled="isCameraActive"
-          @click="startCamera"
-        >
-          启动摄像头
-        </u-button>
+      <view class="camera-overlay">
+        <view class="camera-pill camera-pill-left">
+          <text class="camera-pill-text">
+            {{ isCapturing ? 'AI 识别中...' : 'AI 待机中' }}
+          </text>
+        </view>
 
-        <u-button
-          type="error"
-          size="mini"
-          :disabled="!isCameraActive"
-          @click="stopCamera"
-        >
-          停止摄像头
-        </u-button>
+        <view class="corner corner-tl" />
+        <view class="corner corner-tr" />
+        <view class="corner corner-bl" />
+        <view class="corner corner-br" />
 
-        <u-button
-          type="primary"
-          size="mini"
-          :disabled="!isCameraActive"
-          @click="captureImage"
-        >
-          立即截取
-        </u-button>
+        <view class="focus-dot">
+          <view class="focus-dot-inner" />
+        </view>
       </view>
     </view>
 
-    <view class="images-container">
-      <view class="images-header">
-        <text class="images-title">截取的图片 ({{ capturedImages.length }}/10)</text>
-        <view
-          class="clear-btn"
-          @click="clearImages"
-        >
-          <text>清空</text>
-        </view>
-      </view>
 
-      <scroll-view
-        class="images-scroll"
-        scroll-y
+    <view class="hint-text">
+      <text class="hint-text-inner">
+        {{ isCapturing ? '轻触下方按钮停止识别' : '轻触下方按钮开始识别' }}
+      </text>
+    </view>
+    <view class="bottom-controls">
+      <view
+        class="side-btn"
+        :class="{ 'side-btn--on': isCameraActive, 'side-btn--off': !isCameraActive }"
+        @click="isCameraActive ? stopCamera() : startCamera()"
       >
-        <view
-          v-for="(image, index) in capturedImages"
-          :key="index"
-          class="image-item"
-        >
-          <image
-            class="image-preview"
-            :src="image"
-            mode="widthFix"
-          />
+        <text class="side-btn-icon"></text>
+      </view>
+
+      <view
+        class="shutter"
+        :class="{
+          'shutter--capturing': isCapturing,
+          'shutter--idle': isCameraActive && !isCapturing,
+          'shutter--inactive': !isCameraActive,
+        }"
+        @click="handleShutterClick"
+        @longpress="handleShutterLongpress"
+      >
+        <view class="shutter-ring">
+          <view class="shutter-core" />
+        </view>
+      </view>
+
+      <view
+        class="side-btn"
+        @click="isGalleryOpen = true"
+      >
+        <u-icon
+          name="list"
+          size="44"
+          color="rgba(0, 0, 0, 0.7)"
+        />
+      </view>
+    </view>
+
+    <u-popup
+      v-model="isGalleryOpen"
+      mode="bottom"
+      :round="28"
+      :close-on-click-overlay="true"
+    >
+      <view class="gallery-popup">
+        <view class="images-header">
+          <text class="images-title">截取的图片 ({{ capturedImages.length }}/10)</text>
           <view
-            class="image-save-btn"
-            @click="saveImage(image)"
+            class="clear-btn"
+            @click="clearImages"
           >
-            <text class="image-save-text">保存</text>
+            <text>清空</text>
           </view>
         </view>
 
-        <view
-          v-if="capturedImages.length === 0"
-          class="empty-state"
+        <scroll-view
+          class="images-scroll"
+          scroll-y
         >
-          <text class="empty-text">暂无截取的图片</text>
-        </view>
-      </scroll-view>
-    </view>
+          <view
+            v-for="(image, index) in capturedImages"
+            :key="index"
+            class="image-item"
+          >
+            <image
+              class="image-preview"
+              :src="image"
+              mode="widthFix"
+            />
+            <view
+              class="image-save-btn"
+              @click="saveImage(image)"
+            >
+              <text class="image-save-text">保存</text>
+            </view>
+          </view>
+
+          <view
+            v-if="capturedImages.length === 0"
+            class="empty-state"
+          >
+            <text class="empty-text">暂无截取的图片</text>
+          </view>
+        </scroll-view>
+      </view>
+    </u-popup>
   </view>
 </template>
 
 <style scoped>
 .index-page {
   width: 100%;
-  min-height: 100vh;
-  background: linear-gradient(180deg, #f5f5f5 0%, #e8e8e8 100%);
+  min-height: calc(100vh - 190rpx);
+  background: #f5f5f5;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 100rpx;
 }
 
 .safe-area-inset-top {
@@ -653,9 +736,19 @@ onUnload(() => {
   height: env(safe-area-inset-top);
 }
 
+.camera-card {
+  position: relative;
+  width: calc(100% - 80rpx);
+  margin: 30rpx 40rpx 0 40rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 18rpx 50rpx rgba(0, 0, 0, 0.18);
+}
+
 .camera-container {
   width: 100%;
-  height: 400rpx;
+  height: 900rpx;
   background: #000;
   position: relative;
 }
@@ -674,59 +767,207 @@ onUnload(() => {
   pointer-events: none;
 }
 
-.control-panel {
-  background: #ffffff;
-  padding: 30rpx;
-  margin: 20rpx;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
-.status-bar {
-  display: flex;
-  justify-content: space-around;
-  margin-bottom: 30rpx;
+.camera-pill {
+  position: absolute;
+  top: 26rpx;
+  padding: 14rpx 22rpx;
+  backdrop-filter: blur(10px);
 }
 
-.status-item {
+.camera-pill-left {
+  left: 22rpx;
+}
+
+.camera-pill-right {
+  right: 22rpx;
+}
+
+.camera-pill-text {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.corner {
+  position: absolute;
+  width: 56rpx;
+  height: 56rpx;
+  border-color: rgba(255, 255, 255, 0.75);
+}
+
+.corner-tl {
+  top: 26rpx;
+  left: 26rpx;
+  border-top-width: 4rpx;
+  border-left-width: 4rpx;
+  border-style: solid;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: 16rpx;
+}
+
+.corner-tr {
+  top: 26rpx;
+  right: 26rpx;
+  border-top-width: 4rpx;
+  border-right-width: 4rpx;
+  border-style: solid;
+  border-left: 0;
+  border-bottom: 0;
+  border-top-right-radius: 16rpx;
+}
+
+.corner-bl {
+  bottom: 26rpx;
+  left: 26rpx;
+  border-bottom-width: 4rpx;
+  border-left-width: 4rpx;
+  border-style: solid;
+  border-right: 0;
+  border-top: 0;
+  border-bottom-left-radius: 16rpx;
+}
+
+.corner-br {
+  bottom: 26rpx;
+  right: 26rpx;
+  border-bottom-width: 4rpx;
+  border-right-width: 4rpx;
+  border-style: solid;
+  border-left: 0;
+  border-top: 0;
+  border-bottom-right-radius: 16rpx;
+}
+
+.focus-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  border: 2rpx dashed rgba(255, 255, 255, 0.35);
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  justify-content: center;
 }
 
-.status-dot {
-  width: 16rpx;
-  height: 16rpx;
+.focus-dot-inner {
+  width: 18rpx;
+  height: 18rpx;
   border-radius: 50%;
-  background: #ccc;
-  transition: all 0.3s ease;
+  background: #ff3b30;
 }
 
-.status-dot.active {
-  background: #52c41a;
-  box-shadow: 0 0 10rpx rgba(82, 196, 26, 0.5);
+.hint-text {
+  text-align: center;
 }
 
-.status-text {
-  font-size: 26rpx;
-  color: #666;
+.hint-text-inner {
+  font-size: 28rpx;
+  color: rgba(0, 0, 0, 0.55);
 }
 
-.button-group {
+.bottom-controls {
+  padding: 0 40rpx;
   display: flex;
-  justify-content: space-around;
-  gap: 20rpx;
+  align-items: center;
+  justify-content: space-between;
 }
-.images-container {
-  flex: 1;
-  background: #ffffff;
-  margin: 0 20rpx 20rpx 20rpx;
-  border-radius: 20rpx;
+
+.side-btn {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.side-btn--on {
+  background: rgba(82, 196, 26, 0.92);
+  box-shadow: 0 14rpx 28rpx rgba(82, 196, 26, 0.28), 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
+}
+
+.side-btn--off {
+  background: rgba(255, 77, 79, 0.92);
+  box-shadow: 0 14rpx 28rpx rgba(255, 77, 79, 0.28), 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
+}
+
+.side-btn-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.shutter {
+  width: 170rpx;
+  height: 170rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shutter-ring {
+  width: 170rpx;
+  height: 170rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14rpx 40rpx rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shutter-core {
+  width: 124rpx;
+  height: 124rpx;
+  border-radius: 50%;
+  background: #5d9997;
+  box-shadow: inset 0 10rpx 18rpx rgba(255, 255, 255, 0.25), inset 0 -10rpx 18rpx rgba(0, 0, 0, 0.18);
+}
+
+.shutter--inactive .shutter-ring {
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.14);
+}
+
+.shutter--inactive .shutter-core {
+  background: rgba(93, 153, 151, 0.38);
+  box-shadow: inset 0 10rpx 18rpx rgba(255, 255, 255, 0.3), inset 0 -10rpx 18rpx rgba(0, 0, 0, 0.08);
+}
+
+.shutter--idle .shutter-core {
+  background: rgba(93, 153, 151, 0.88);
+  box-shadow: inset 0 10rpx 18rpx rgba(255, 255, 255, 0.22), inset 0 -10rpx 18rpx rgba(0, 0, 0, 0.16);
+}
+
+.shutter--capturing .shutter-ring {
+  box-shadow: 0 18rpx 48rpx rgba(93, 153, 151, 0.38), 0 14rpx 40rpx rgba(0, 0, 0, 0.18);
+}
+
+.shutter--capturing .shutter-core {
+  background: #5d9997;
+}
+
+.gallery-popup {
+  height: 80vh;
+  background: rgba(255, 255, 255, 0.98);
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
   padding: 30rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 20rpx);
   display: flex;
   flex-direction: column;
-  height: 0;
 }
 
 .images-header {

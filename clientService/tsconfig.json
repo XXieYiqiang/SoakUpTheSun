@@ -7,7 +7,8 @@
     "moduleResolution": "bundler",
     "paths": {
       "@/*": ["./src/*"],
-      "@img/*": ["./src/static/*"]
+      "@img/*": ["./src/static/*"],
+      "uview-pro": ["./src/types/uview-pro-shim.d.ts"]
     },
     "resolveJsonModule": true,
     "types": [
