@@ -21,6 +21,7 @@ export function http<T>(options: CustomRequestOptions) {
       // #endif
       // 响应成功
       success: async (res) => {
+        console.log("🚀 ~ http ~ res:", res)
         const responseData = res.data as IResponse<T>
         const { code } = responseData
 
@@ -96,6 +97,7 @@ export function http<T>(options: CustomRequestOptions) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           // 处理业务逻辑错误
           if (code !== ResultEnum.Success0 && code !== ResultEnum.Success200) {
+            
             uni.showToast({
               icon: 'none',
               title: responseData.msg || responseData.message || '请求错误',

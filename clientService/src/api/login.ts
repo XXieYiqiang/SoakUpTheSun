@@ -90,6 +90,14 @@ export function updateUserPassword(data: IUpdatePassword) {
 }
 
 /**
+ * 更新用户信息
+ * 后端接口：/api/user（在项目内通过 /user 访问，由拦截器拼接代理前缀）
+ */
+export function updateUser(data: Partial<IUserInfoRes>) {
+  return http.put<IUserInfoRes>('/user', data)
+}
+
+/**
  * 获取微信登录凭证
  * @returns Promise 包含微信登录凭证(code)
  */

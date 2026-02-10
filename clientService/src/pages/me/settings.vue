@@ -35,7 +35,8 @@ const settingsList = computed(() => {
     {
       title: t('settings.about'),
       icon: 'info',
-      type: 'link',
+      type: 'text',
+      value: 'v1.0.0',
     },
     {
       title: t('settings.privacy'),
@@ -93,6 +94,16 @@ function handleItemClick(item: any) {
   if (item.type === 'link') {
     if (item.title === t('settings.setupFingerprint')) {
       handleSetupFingerprint()
+    }
+    else if (item.title === t('settings.privacy')) {
+      uni.navigateTo({
+        url: '/pages/me/privacy-policy',
+      })
+    }
+    else if (item.title === t('settings.terms')) {
+      uni.navigateTo({
+        url: '/pages/me/user-agreement',
+      })
     }
     else {
       uni.showToast({
@@ -257,8 +268,14 @@ function handleLogout() {
             >
               {{ item.value === 'zh-Hans' ? '简体中文' : 'English' }}
             </text>
+            <text
+              v-else-if="item.type === 'text'"
+              class="item-value"
+            >
+              {{ item.value }}
+            </text>
             <u-icon
-              v-else
+              v-else-if="item.type === 'link'"
               name="arrow-right"
               size="32"
               color="#c0c0c0"
@@ -280,7 +297,7 @@ function handleLogout() {
 
       <view class="version-info">
         <text class="version-text">
-          {{ t('settings.version') }} 1.0.0
+          {{ t('settings.version') }} v1.0.0
         </text>
       </view>
     </scroll-view>

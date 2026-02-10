@@ -892,12 +892,12 @@ onUnload(() => {
   justify-content: center;
 }
 
-.side-btn--on {
+.side-btn--off {
   background: rgba(82, 196, 26, 0.92);
   box-shadow: 0 14rpx 28rpx rgba(82, 196, 26, 0.28), 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
 }
 
-.side-btn--off {
+.side-btn--on {
   background: rgba(255, 77, 79, 0.92);
   box-shadow: 0 14rpx 28rpx rgba(255, 77, 79, 0.28), 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
 }

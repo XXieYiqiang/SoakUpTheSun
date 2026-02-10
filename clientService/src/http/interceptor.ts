@@ -6,6 +6,66 @@ import { stringifyQuery } from './tools/queryString'
 // 请求基准地址
 const baseUrl = getEnvBaseUrl()
 
+function safeJsonParse(input: string) {
+  try {
+    return JSON.parse(input)
+  }
+  catch {
+    return null
+  }
+}
+
+function normalizeToken(raw: unknown): string {
+  if (typeof raw !== 'string')
+    return ''
+  const val = raw.trim()
+  if (!val)
+    return ''
+  if (val.toLowerCase().startsWith('bearer ')) {
+    return val.slice(7).trim()
+  }
+  return val
+}
+
+function extractTokenFromMaybePersistedState(raw: unknown): string {
+  const direct = normalizeToken(raw)
+  if (direct)
+    return direct
+
+  if (typeof raw !== 'string')
+    return ''
+
+  const parsed = safeJsonParse(raw)
+  if (!parsed || typeof parsed !== 'object')
+    return ''
+
+  const obj: any = parsed
+  const tokenInfo = obj.tokenInfo || obj.token || obj.accessToken || obj.data
+  if (tokenInfo && typeof tokenInfo === 'object') {
+    return normalizeToken(tokenInfo.token || tokenInfo.accessToken || tokenInfo.Authorization)
+  }
+  return normalizeToken(obj.token || obj.accessToken || obj.Authorization)
+}
+
+function getTokenFromStorage(): string {
+  // #ifdef H5
+  const candidates = ['accessToken', 'token', 'Authorization', 'authToken']
+  for (const key of candidates) {
+    const val = localStorage.getItem(key)
+    const token = extractTokenFromMaybePersistedState(val)
+    if (token)
+      return token
+  }
+  // #endif
+
+  const uniToken = uni.getStorageSync('accessToken') || uni.getStorageSync('token') || uni.getStorageSync('Authorization')
+  const token = extractTokenFromMaybePersistedState(uniToken)
+  if (token)
+    return token
+  const persisted = uni.getStorageSync('token')
+  return extractTokenFromMaybePersistedState(persisted)
+}
+
 // 拦截器配置
 const httpInterceptor = {
   // 拦截前触发
@@ -50,10 +110,16 @@ const httpInterceptor = {
     }
     // 3. 添加 token 请求头标识
     const tokenStore = useTokenStore()
-    const token = tokenStore.updateNowTime().validToken
+    const token = getTokenFromStorage() || tokenStore.updateNowTime().validToken
 
     if (token) {
-      options.header.Authorization = `Bearer ${token}`
+      const headerAny: any = options.header
+      if (!headerAny.Authorization && !headerAny.authorization) {
+        headerAny.Authorization = `Bearer ${token}`
+      }
+      if (!headerAny.token && !headerAny.Token) {
+        headerAny.token = token
+      }
     }
     return options
   },

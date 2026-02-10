@@ -95,52 +95,44 @@ async function handleLogin() {
   if (!validateForm())
     return
 
-    setTimeout(() => {
-      uni.switchTab({
-        url: '/pages/index/index',
+    // setTimeout(() => {
+    //   uni.switchTab({
+    //     url: '/pages/index/index',
+    //   })
+    // }, 1000)
+
+  loading.value = true
+  try {
+    const res:any = await userLogin({
+      userAccount: formData.phone,
+      password: formData.password,
+    })
+
+      saveCredentials()
+      // 假设 res.data 包含 token 等信息，这里可以保存到 store 或 storage
+      if (res?.token) uni.setStorageSync('token', res.token)
+
+      uni.showToast({
+        title: t('login.loginSuccess'),
+        icon: 'success',
+        duration: 1000,
       })
-    }, 1000)
-
-  // loading.value = true
-  // try {
-  //   const res:any = await userLogin({
-  //     userAccount: formData.phone,
-  //     password: formData.password,
-  //   })
-
-  //   if (res.code === 200 || res.code === 0) { // 根据后端实际返回调整
-  //     saveCredentials()
-  //     // 假设 res.data 包含 token 等信息，这里可以保存到 store 或 storage
-  //     // if (res.data?.token) uni.setStorageSync('token', res.data.token)
-
-  //     uni.showToast({
-  //       title: t('login.loginSuccess'),
-  //       icon: 'success',
-  //       duration: 1000,
-  //     })
-  //     // setTimeout(() => {
-  //     //   uni.switchTab({
-  //     //     url: '/pages/index/index',
-  //     //   })
-  //     // }, 300)
-  //   } else {
-  //     uni.showToast({
-  //       title: res.msg || t('login.loginFailed'),
-  //       icon: 'none',
-  //       duration: 2000,
-  //     })
-  //   }
-  // }
-  // catch (error: any) {
-  //   uni.showToast({
-  //     title: error.message || t('login.loginFailed'),
-  //     icon: 'none',
-  //     duration: 2000,
-  //   })
-  // }
-  // finally {
-  //   loading.value = false
-  // }
+      setTimeout(() => {
+        uni.switchTab({
+          url: '/pages/index/index',
+        })
+      }, 300)
+  }
+  catch (error: any) {
+    uni.showToast({
+      title: error.message || t('login.loginFailed'),
+      icon: 'none',
+      duration: 2000,
+    })
+  }
+  finally {
+    loading.value = false
+  }
 }
 
 function togglePassword() {

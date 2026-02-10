@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { RegionData } from './region-data'
+import type { IUserInfoRes } from '@/api/types/login'
 import { t } from '@/locale/index'
 import { regionData } from './region-data'
 
@@ -11,18 +12,22 @@ definePage({
 })
 
 const userInfo = reactive({
-  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop',
+  avatar: '',
   nickname: '用户昵称',
   gender: '男',
   region: '北京市',
-  phone: '138****8888',
+  phone: '',
   fingerprintCode: 'FP-2024-001234',
   profile: '这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下',
   createTime: '2024-01-01',
 })
 
-import { getUserInfo } from '@/api/login'
+import { getUserInfo, updateUser } from '@/api/login'
+import { useUserStore } from '@/store'
 const STORAGE_KEY = 'login_credentials'
+const userStore = useUserStore()
+const serverUserInfo = ref<IUserInfoRes | null>(null)
+const saving = ref(false)
 
 onShow(() => {
   fetchUserInfo()
@@ -41,6 +46,7 @@ async function fetchUserInfo() {
     const res = await getUserInfo(saved.phone)
     const data = res
     if (data) {
+      serverUserInfo.value = data
       userInfo.nickname = data.userName || userInfo.nickname
       userInfo.phone = data.userAccount || userInfo.phone
       userInfo.avatar = data.userAvatar || userInfo.avatar
@@ -53,6 +59,7 @@ async function fetchUserInfo() {
       
       // 更新storage
       uni.setStorageSync('user_info', data)
+      userStore.setUserInfo(data)
     }
   } catch (error) {
     console.error('获取用户信息失败:', error)
@@ -60,9 +67,13 @@ async function fetchUserInfo() {
 }
 
 const showNicknamePopup = ref(false)
+const showAvatarPopup = ref(false)
+const showProfilePopup = ref(false)
 const showGenderPopup = ref(false)
 const showRegionPopup = ref(false)
 const tempNickname = ref('')
+const tempAvatar = ref('')
+const tempProfile = ref('')
 const tempGender = ref('')
 const tempRegion = ref('')
 const selectedProvince = ref<RegionData | null>(null)
@@ -70,6 +81,76 @@ const selectedCity = ref<RegionData | null>(null)
 const selectedDistrict = ref<RegionData | null>(null)
 const currentTab = ref(0)
 const locating = ref(false)
+
+function applyViewFromServer(data: IUserInfoRes) {
+  userInfo.nickname = data.userName || userInfo.nickname
+  userInfo.phone = data.userAccount || userInfo.phone
+  userInfo.avatar = data.userAvatar || userInfo.avatar
+  userInfo.profile = data.userProfile || userInfo.profile
+  userInfo.gender = data.sex === 1 ? '男' : (data.sex === 0 ? '女' : '未知')
+  userInfo.region = data.location || userInfo.region
+  if (data.createTime) {
+    userInfo.createTime = data.createTime.split(' ')[0]
+  }
+}
+
+async function saveUserPatch(patch: Partial<IUserInfoRes>) {
+  if (saving.value)
+    return
+  const base = serverUserInfo.value || (uni.getStorageSync('user_info') as IUserInfoRes | null) || null
+  if (!base) {
+    await fetchUserInfo()
+  }
+  const merged: Partial<IUserInfoRes> = {
+    ...(serverUserInfo.value || {}),
+    ...patch,
+  }
+  const payload: Partial<IUserInfoRes> = {
+    id: merged.id,
+    userName: merged.userName,
+    userAvatar: merged.userAvatar,
+    userProfile: merged.userProfile,
+    sex: 1
+  }
+
+  Object.keys(payload).forEach((k) => {
+    if ((payload as any)[k] === undefined) {
+      delete (payload as any)[k]
+    }
+  })
+
+  try {
+    saving.value = true
+    uni.showLoading({
+      title: t('basicInfo.saving') || '保存中...',
+      mask: true,
+    })
+    const updated = await updateUser(payload)
+    serverUserInfo.value = { ...(serverUserInfo.value || ({} as any)), ...(updated as any) }
+    uni.setStorageSync('user_info', serverUserInfo.value)
+    userStore.setUserInfo(serverUserInfo.value as IUserInfoRes)
+    applyViewFromServer(serverUserInfo.value as IUserInfoRes)
+    uni.hideLoading()
+    uni.showToast({
+      title: t('basicInfo.saveSuccess'),
+      icon: 'success',
+      duration: 2000,
+    })
+    return updated
+  }
+  catch (e) {
+    uni.hideLoading()
+    uni.showToast({
+      title: t('basicInfo.saveFailed') || '保存失败',
+      icon: 'none',
+      duration: 2500,
+    })
+    throw e
+  }
+  finally {
+    saving.value = false
+  }
+}
 
 const genderOptions = computed(() => [
   {
@@ -103,18 +184,18 @@ const infoList = computed(() => [
     value: userInfo.nickname,
     icon: 'account',
   },
-  {
-    key: 'gender',
-    label: t('basicInfo.gender'),
-    value: userInfo.gender,
-    icon: 'man',
-  },
-  {
-    key: 'region',
-    label: t('basicInfo.region'),
-    value: userInfo.region,
-    icon: 'map',
-  },
+  // {
+  //   key: 'gender',
+  //   label: t('basicInfo.gender'),
+  //   value: userInfo.gender,
+  //   icon: 'man',
+  // },
+  // {
+  //   key: 'region',
+  //   label: t('basicInfo.region'),
+  //   value: userInfo.region,
+  //   icon: 'map',
+  // },
   {
     key: 'phone',
     label: t('basicInfo.userAccount'),
@@ -127,7 +208,6 @@ const infoList = computed(() => [
     label: t('basicInfo.profile'),
     value: userInfo.profile,
     icon: 'file-text',
-    disabled: true, // 简介暂不支持编辑，或点击跳转编辑页
   },
   {
     key: 'fingerprintCode',
@@ -136,21 +216,18 @@ const infoList = computed(() => [
     icon: 'fingerprint',
     disabled: true,
   },
-  {
-    key: 'createTime',
-    label: t('basicInfo.createTime'),
-    value: userInfo.createTime,
-    icon: 'clock',
-    disabled: true,
-  },
+  // {
+  //   key: 'createTime',
+  //   label: t('basicInfo.createTime'),
+  //   value: userInfo.createTime,
+  //   icon: 'clock',
+  //   disabled: true,
+  // },
 ])
 
 function handleEditAvatar() {
-  uni.showToast({
-    title: t('basicInfo.editAvatar'),
-    icon: 'none',
-    duration: 2000,
-  })
+  tempAvatar.value = userInfo.avatar
+  showAvatarPopup.value = true
 }
 
 function handleEditInfo(item: any) {
@@ -158,6 +235,10 @@ function handleEditInfo(item: any) {
   if (item.key === 'nickname') {
     tempNickname.value = userInfo.nickname
     showNicknamePopup.value = true
+  }
+  else if (item.key === 'profile') {
+    tempProfile.value = userInfo.profile
+    showProfilePopup.value = true
   }
   else if (item.key === 'gender') {
     tempGender.value = userInfo.gender
@@ -284,13 +365,11 @@ function handleLocation() {
 
 function handleNicknameConfirm() {
   if (tempNickname.value.trim()) {
-    userInfo.nickname = tempNickname.value.trim()
-    showNicknamePopup.value = false
-    uni.showToast({
-      title: t('basicInfo.saveSuccess'),
-      icon: 'success',
-      duration: 2000,
-    })
+    const nextName = tempNickname.value.trim()
+    saveUserPatch({ userName: nextName }).then(() => {
+      userInfo.nickname = nextName
+      showNicknamePopup.value = false
+    }).catch(() => {})
   }
   else {
     uni.showToast({
@@ -303,6 +382,46 @@ function handleNicknameConfirm() {
 
 function handleNicknameCancel() {
   showNicknamePopup.value = false
+}
+
+function handleAvatarConfirm() {
+  const nextAvatar = tempAvatar.value.trim()
+  if (!nextAvatar) {
+    uni.showToast({
+      title: t('basicInfo.avatarRequired') || '请输入头像链接',
+      icon: 'none',
+      duration: 2000,
+    })
+    return
+  }
+  saveUserPatch({ userAvatar: nextAvatar }).then(() => {
+    userInfo.avatar = nextAvatar
+    showAvatarPopup.value = false
+  }).catch(() => {})
+}
+
+function handleAvatarCancel() {
+  showAvatarPopup.value = false
+}
+
+function handleProfileConfirm() {
+  const nextProfile = tempProfile.value.trim()
+  if (!nextProfile) {
+    uni.showToast({
+      title: t('basicInfo.profileRequired') || '请输入简介',
+      icon: 'none',
+      duration: 2000,
+    })
+    return
+  }
+  saveUserPatch({ userProfile: nextProfile }).then(() => {
+    userInfo.profile = nextProfile
+    showProfilePopup.value = false
+  }).catch(() => {})
+}
+
+function handleProfileCancel() {
+  showProfilePopup.value = false
 }
 
 function handleGenderSelect(gender: string) {
@@ -428,6 +547,48 @@ function handleRegionCancel() {
             borderRadius: '8rpx',
             padding: '20rpx',
           }"
+        />
+      </view>
+    </u-modal>
+
+    <u-modal
+      v-model="showAvatarPopup"
+      :title="t('basicInfo.editUserAvatar')"
+      :show-confirm-button="true"
+      :show-cancel-button="true"
+      :cancel-text="t('basicInfo.cancel')"
+      :confirm-text="t('basicInfo.confirm')"
+      @confirm="handleAvatarConfirm"
+      @cancel="handleAvatarCancel"
+    >
+      <view class="nickname-modal-content">
+        <u-input
+          v-model="tempAvatar"
+          :placeholder="t('basicInfo.avatarPlaceholder')"
+          border="none"
+          :custom-style="{
+            borderRadius: '8rpx',
+            padding: '20rpx',
+          }"
+        />
+      </view>
+    </u-modal>
+
+    <u-modal
+      v-model="showProfilePopup"
+      :title="t('basicInfo.editProfile')"
+      :show-confirm-button="true"
+      :show-cancel-button="true"
+      :cancel-text="t('basicInfo.cancel')"
+      :confirm-text="t('basicInfo.confirm')"
+      @confirm="handleProfileConfirm"
+      @cancel="handleProfileCancel"
+    >
+      <view class="nickname-modal-content">
+        <textarea
+          v-model="tempProfile"
+          class="profile-textarea"
+          :placeholder="t('basicInfo.profilePlaceholder')"
         />
       </view>
     </u-modal>
@@ -745,6 +906,17 @@ function handleRegionCancel() {
 
   .nickname-modal-content {
     padding: 20rpx 32rpx 40rpx;
+  }
+
+  .profile-textarea {
+    width: 100%;
+    min-height: 220rpx;
+    padding: 20rpx;
+    border-radius: 16rpx;
+    background: #f8f8f8;
+    font-size: 28rpx;
+    color: #333;
+    box-sizing: border-box;
   }
 
   .gender-modal-content {
