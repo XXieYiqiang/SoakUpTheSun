@@ -15,66 +15,14 @@ const formData = reactive({
   account: '', // 账号
   password: '', // 密码
   username: '', // 用户名
-  bio: '', // 简介
-  avatar: '', // 头像 base64
+  bio: '这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下这个人很懒，什么都没有留下', // 简介
+  userAvatar: `https://avatars.githubusercontent.com/u/${Math.floor(Math.random() * 10000)}`, // 头像
 })
 
 const loading = ref(false)
 const showPassword = ref(false)
 
-// 压缩图片并转Base64
-async function compressAndToBase64(tempFilePath: string): Promise<string> {
-  // #ifdef H5
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.src = tempFilePath
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        reject(new Error('Canvas context not available'))
-        return
-      }
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      const base64 = canvas.toDataURL('image/jpeg', 0.8) // 0.8 quality
-      resolve(base64)
-    }
-    img.onerror = reject
-  })
-  // #endif
-}
-
-function handleChooseAvatar() {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: async (res) => {
-      try {
-        uni.showLoading({ title: '处理中...' })
-        const tempFilePath = res.tempFilePaths[0]
-        const base64 = await compressAndToBase64(tempFilePath)
-        formData.avatar = base64
-        uni.hideLoading()
-      } catch (error) {
-        uni.hideLoading()
-        uni.showToast({
-          title: '图片处理失败',
-          icon: 'none'
-        })
-        console.error(error)
-      }
-    }
-  })
-}
-
 function validateForm() {
-  if (!formData.avatar) {
-    uni.showToast({ title: '请上传头像', icon: 'none' })
-    return false
-  }
   if (!formData.account) {
     uni.showToast({ title: '请输入账号', icon: 'none' })
     return false
@@ -97,29 +45,22 @@ async function handleRegister() {
 
   loading.value = true
   try {
-    const res:any = await register({
+    const res: any = await register({
       userAccount: formData.account,
       userPassword: formData.password,
       userName: formData.username,
-      userAvatar: formData.avatar,
       userProfile: formData.bio,
     })
 
-    if (res.code === 200 || res.code === 0) { // 根据实际后端返回code判断
-      uni.showToast({
-        title: '注册成功',
-        icon: 'success'
-      })
-      
-      setTimeout(() => {
-        uni.navigateBack()
-      }, 1500)
-    } else {
-      uni.showToast({
-        title: res.msg || '注册失败',
-        icon: 'none'
-      })
-    }
+    uni.showToast({
+      title: '注册成功',
+      icon: 'success'
+    })
+
+    setTimeout(() => {
+      uni.navigateBack()
+    }, 1500)
+
   } catch (error: any) {
     uni.showToast({
       title: error.message || '注册失败',
@@ -150,32 +91,13 @@ function togglePassword() {
       </view>
 
       <view class="form-section">
-        <!-- 头像上传 -->
-        <view class="avatar-upload" @click="handleChooseAvatar">
-          <view v-if="formData.avatar" class="avatar-preview">
-            <image :src="formData.avatar" mode="aspectFill" class="avatar-image" />
-            <view class="avatar-edit-mask">
-              <u-icon name="camera" size="24" color="#fff" />
-            </view>
-          </view>
-          <view v-else class="avatar-placeholder">
-            <u-icon name="camera" size="40" color="#999" />
-            <text class="upload-text">上传头像</text>
-          </view>
-        </view>
-
         <!-- 表单输入 -->
         <view class="input-group">
           <view class="input-wrapper">
             <view class="input-icon">
               <u-icon name="account" size="36" color="#999" />
             </view>
-            <input
-              v-model="formData.account"
-              class="input-field"
-              placeholder="请输入账号"
-              :disabled="loading"
-            >
+            <input v-model="formData.account" class="input-field" placeholder="请输入账号" :disabled="loading">
           </view>
         </view>
 
@@ -184,12 +106,7 @@ function togglePassword() {
             <view class="input-icon">
               <u-icon name="edit-pen" size="36" color="#999" />
             </view>
-            <input
-              v-model="formData.username"
-              class="input-field"
-              placeholder="请输入用户名"
-              :disabled="loading"
-            >
+            <input v-model="formData.username" class="input-field" placeholder="请输入用户名" :disabled="loading">
           </view>
         </view>
 
@@ -198,19 +115,10 @@ function togglePassword() {
             <view class="input-icon">
               <u-icon name="lock" size="36" color="#999" />
             </view>
-            <input
-              v-model="formData.password"
-              :password="!showPassword"
-              class="input-field"
-              placeholder="请输入密码"
-              :disabled="loading"
-            >
+            <input v-model="formData.password" :password="!showPassword" class="input-field" placeholder="请输入密码"
+              :disabled="loading">
             <view class="password-toggle" @click="togglePassword">
-              <u-icon
-                :name="showPassword ? 'eye-off' : 'eye'"
-                size="36"
-                color="#999"
-              />
+              <u-icon :name="showPassword ? 'eye-off' : 'eye'" size="36" color="#999" />
             </view>
           </view>
         </view>
@@ -220,21 +128,12 @@ function togglePassword() {
             <view class="input-icon top-align">
               <u-icon name="file-text" size="36" color="#999" />
             </view>
-            <textarea
-              v-model="formData.bio"
-              class="input-field textarea-field"
-              placeholder="请输入个人简介"
-              :disabled="loading"
-              :maxlength="200"
-            />
+            <textarea v-model="formData.bio" class="input-field textarea-field" placeholder="请输入个人简介"
+              :disabled="loading" :maxlength="200" />
           </view>
         </view>
 
-        <view
-          class="register-btn"
-          :class="{ loading }"
-          @click="handleRegister"
-        >
+        <view class="register-btn" :class="{ loading }" @click="handleRegister">
           <text v-if="loading">注册中...</text>
           <text v-else>立即注册</text>
         </view>
@@ -323,59 +222,6 @@ function togglePassword() {
       0 8rpx 24rpx rgba(0, 0, 0, 0.08),
       inset 0 1rpx 0 rgba(255, 255, 255, 0.8);
     border: 1rpx solid rgba(255, 255, 255, 0.6);
-
-    .avatar-upload {
-      width: 160rpx;
-      height: 160rpx;
-      margin: 0 auto 60rpx;
-      position: relative;
-      border-radius: 50%;
-      background: #f8f9fb;
-      box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-      cursor: pointer;
-      border: 4rpx solid #fff;
-
-      .avatar-preview {
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        overflow: hidden;
-        position: relative;
-
-        .avatar-image {
-          width: 100%;
-          height: 100%;
-        }
-
-        .avatar-edit-mask {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 100%;
-          height: 40rpx;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-      }
-
-      .avatar-placeholder {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-
-        .upload-text {
-          font-size: 20rpx;
-          color: #999;
-          margin-top: 8rpx;
-        }
-      }
-    }
 
     .input-group {
       margin-bottom: 32rpx;

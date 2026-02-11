@@ -10,9 +10,9 @@ definePage({
 })
 
 const userInfo = reactive({
-  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop',
-  nickname: '用户昵称',
-  phone: '138****8888',
+  avatar: '',
+  nickname: 'xxxx',
+  phone: 'xxx',
 })
 
 const STORAGE_KEY = 'login_credentials'

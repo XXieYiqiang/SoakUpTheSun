@@ -7,8 +7,7 @@ import { http } from '@/http/http'
  * @param description 描述内容
  */
 export function uploadPictureAnalysis(filePath: string, description: string = '') {
-  return http.post<any>('/picture/uploadPictureAnalysis', {
-    filePath,
+  return http.post<any>('/picApi/api/picture/uploadPictureAnalysis', {
     name: 'file',
     formData: {
       descriptionContent: description
@@ -21,5 +20,5 @@ export function uploadPictureAnalysis(filePath: string, description: string = ''
  * @param pictureId 图片ID
  */
 export function getPictureAnalysisResponse(pictureId: string | number) {
-  return http.get<any>(`/picture/getPictureAnalysisResponse`, { pictureId })
+  return http.get<any>(`/picApi/api/picture/getPictureAnalysisResponse`, { pictureId })
 }

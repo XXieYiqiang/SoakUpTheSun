@@ -105,12 +105,20 @@ async function saveUserPatch(patch: Partial<IUserInfoRes>) {
     ...(serverUserInfo.value || {}),
     ...patch,
   }
+  const userAccount = merged.userAccount || base?.userAccount || userInfo.phone
+  if (!userAccount) {
+    uni.showToast({
+      title: '缺少账号信息',
+      icon: 'none',
+      duration: 2000,
+    })
+    return
+  }
   const payload: Partial<IUserInfoRes> = {
-    id: merged.id,
+    userAccount,
     userName: merged.userName,
     userAvatar: merged.userAvatar,
     userProfile: merged.userProfile,
-    sex: 1
   }
 
   Object.keys(payload).forEach((k) => {

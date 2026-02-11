@@ -7,7 +7,7 @@ defineOptions({
 definePage({
   type: 'home',
   style: {
-    navigationStyle: 'default',
+    navigationStyle: 'custom',
     navigationBarTitleText: '%tabbar.home%',
   },
 })
@@ -53,7 +53,8 @@ async function applyH5Constraints() {
       width: { ideal: width },
       height: { ideal: height },
       aspectRatio: { ideal: aspectRatio },
-    })
+      resizeMode: 'crop-and-scale',
+    } as any)
   }
   catch {}
   // #endif
@@ -75,6 +76,13 @@ function handleShutterLongpress() {
   if (isCameraActive.value) {
     stopCamera()
   }
+}
+
+function handleBack() {
+  uni.navigateBack({
+    delta: 1,
+    fail: () => {},
+  })
 }
 
 function unwrapRefEl(val: any) {
@@ -190,22 +198,24 @@ async function startCamera() {
         return
       }
       const firstCam = cameras[0]
+      const videoConstraints = firstCam.deviceId
+        ? {
+            deviceId: { exact: firstCam.deviceId },
+            width: { ideal: target.width },
+            height: { ideal: target.height },
+            aspectRatio: { ideal: target.aspectRatio },
+            frameRate: { ideal: 30, max: 60 },
+          }
+        : {
+            width: { ideal: target.width },
+            height: { ideal: target.height },
+            aspectRatio: { ideal: target.aspectRatio },
+            frameRate: { ideal: 30, max: 60 },
+            facingMode: { ideal: 'environment' },
+          }
+      ;(videoConstraints as any).resizeMode = 'crop-and-scale'
       const constraints: MediaStreamConstraints = {
-        video: firstCam.deviceId
-          ? {
-              deviceId: { exact: firstCam.deviceId },
-              width: { ideal: target.width },
-              height: { ideal: target.height },
-              aspectRatio: { ideal: target.aspectRatio },
-              frameRate: { ideal: 30, max: 60 },
-            }
-          : {
-              width: { ideal: target.width },
-              height: { ideal: target.height },
-              aspectRatio: { ideal: target.aspectRatio },
-              frameRate: { ideal: 30, max: 60 },
-              facingMode: { ideal: 'environment' },
-            },
+        video: videoConstraints as any,
         audio: false,
       }
       cameraStream = await navigator.mediaDevices.getUserMedia(constraints)
@@ -574,10 +584,7 @@ onUnload(() => {
 
 <template>
   <view class="index-page">
-    <view class="safe-area-inset-top" />
-
-    <view class="camera-card">
-      <view class="camera-container">
+    <view class="camera-container">
       <!-- #ifdef H5 -->
       <video
         id="cameraVideo"
@@ -607,65 +614,55 @@ onUnload(() => {
         :beauty="0"
       />
       <!-- #endif -->
-      </view>
+    </view>
 
-      <view class="camera-overlay">
-        <view class="camera-pill camera-pill-left">
-          <text class="camera-pill-text">
-            {{ isCapturing ? 'AI 识别中...' : 'AI 待机中' }}
+    <view class="immersive-overlay">
+      <view class="safe-area-inset-top" />
+
+      <view class="overlay-spacer" />
+
+      <view class="bottom-area">
+        <view class="hint-text">
+          <text class="hint-text-inner">
+            {{ isCapturing ? '轻触下方按钮停止识别' : '轻触下方按钮开始识别' }}
           </text>
         </view>
 
-        <view class="corner corner-tl" />
-        <view class="corner corner-tr" />
-        <view class="corner corner-bl" />
-        <view class="corner corner-br" />
+        <view class="bottom-bar">
+          <view
+            class="side-btn"
+            :class="{ 'side-btn--on': isCameraActive, 'side-btn--off': !isCameraActive }"
+            @click="isCameraActive ? stopCamera() : startCamera()"
+          >
+            <text class="side-btn-icon">⚡</text>
+          </view>
 
-        <view class="focus-dot">
-          <view class="focus-dot-inner" />
+          <view
+            class="shutter"
+            :class="{
+              'shutter--capturing': isCapturing,
+              'shutter--idle': isCameraActive && !isCapturing,
+              'shutter--inactive': !isCameraActive,
+            }"
+            @click="handleShutterClick"
+            @longpress="handleShutterLongpress"
+          >
+            <view class="shutter-ring">
+              <view class="shutter-core" />
+            </view>
+          </view>
+
+          <view
+            class="side-btn"
+            @click="isGalleryOpen = true"
+          >
+            <u-icon
+              name="list"
+              size="44"
+              color="rgba(255, 255, 255, 0.92)"
+            />
+          </view>
         </view>
-      </view>
-    </view>
-
-
-    <view class="hint-text">
-      <text class="hint-text-inner">
-        {{ isCapturing ? '轻触下方按钮停止识别' : '轻触下方按钮开始识别' }}
-      </text>
-    </view>
-    <view class="bottom-controls">
-      <view
-        class="side-btn"
-        :class="{ 'side-btn--on': isCameraActive, 'side-btn--off': !isCameraActive }"
-        @click="isCameraActive ? stopCamera() : startCamera()"
-      >
-        <text class="side-btn-icon"></text>
-      </view>
-
-      <view
-        class="shutter"
-        :class="{
-          'shutter--capturing': isCapturing,
-          'shutter--idle': isCameraActive && !isCapturing,
-          'shutter--inactive': !isCameraActive,
-        }"
-        @click="handleShutterClick"
-        @longpress="handleShutterLongpress"
-      >
-        <view class="shutter-ring">
-          <view class="shutter-core" />
-        </view>
-      </view>
-
-      <view
-        class="side-btn"
-        @click="isGalleryOpen = true"
-      >
-        <u-icon
-          name="list"
-          size="44"
-          color="rgba(0, 0, 0, 0.7)"
-        />
       </view>
     </view>
 
@@ -723,12 +720,10 @@ onUnload(() => {
 <style scoped>
 .index-page {
   width: 100%;
-  min-height: calc(100vh - 190rpx);
-  background: #f5f5f5;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding-bottom: 100rpx;
+  height: calc(100vh - 100rpx);
+  background: #000;
+  overflow: hidden;
+  position: relative;
 }
 
 .safe-area-inset-top {
@@ -736,21 +731,12 @@ onUnload(() => {
   height: env(safe-area-inset-top);
 }
 
-.camera-card {
-  position: relative;
-  width: calc(100% - 80rpx);
-  margin: 30rpx 40rpx 0 40rpx;
-  border-radius: 24rpx;
-  overflow: hidden;
-  background: #000;
-  box-shadow: 0 18rpx 50rpx rgba(0, 0, 0, 0.18);
-}
-
 .camera-container {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: 900rpx;
+  height: 100%;
   background: #000;
-  position: relative;
 }
 
 .camera-video {
@@ -767,139 +753,112 @@ onUnload(() => {
   pointer-events: none;
 }
 
-.camera-overlay {
+.immersive-overlay {
   position: absolute;
   inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18rpx 24rpx 0;
   pointer-events: none;
 }
 
-.camera-pill {
-  position: absolute;
-  top: 26rpx;
-  padding: 14rpx 22rpx;
-  backdrop-filter: blur(10px);
+.top-btn {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1rpx solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
 }
 
-.camera-pill-left {
-  left: 22rpx;
+.top-tag {
+  height: 72rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1rpx solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  pointer-events: none;
 }
 
-.camera-pill-right {
-  right: 22rpx;
-}
-
-.camera-pill-text {
+.top-tag-text {
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.92);
 }
 
-.corner {
-  position: absolute;
-  width: 56rpx;
-  height: 56rpx;
-  border-color: rgba(255, 255, 255, 0.75);
+.overlay-spacer {
+  flex: 1;
 }
 
-.corner-tl {
-  top: 26rpx;
-  left: 26rpx;
-  border-top-width: 4rpx;
-  border-left-width: 4rpx;
-  border-style: solid;
-  border-right: 0;
-  border-bottom: 0;
-  border-top-left-radius: 16rpx;
-}
-
-.corner-tr {
-  top: 26rpx;
-  right: 26rpx;
-  border-top-width: 4rpx;
-  border-right-width: 4rpx;
-  border-style: solid;
-  border-left: 0;
-  border-bottom: 0;
-  border-top-right-radius: 16rpx;
-}
-
-.corner-bl {
-  bottom: 26rpx;
-  left: 26rpx;
-  border-bottom-width: 4rpx;
-  border-left-width: 4rpx;
-  border-style: solid;
-  border-right: 0;
-  border-top: 0;
-  border-bottom-left-radius: 16rpx;
-}
-
-.corner-br {
-  bottom: 26rpx;
-  right: 26rpx;
-  border-bottom-width: 4rpx;
-  border-right-width: 4rpx;
-  border-style: solid;
-  border-left: 0;
-  border-top: 0;
-  border-bottom-right-radius: 16rpx;
-}
-
-.focus-dot {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 50%;
-  border: 2rpx dashed rgba(255, 255, 255, 0.35);
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.focus-dot-inner {
-  width: 18rpx;
-  height: 18rpx;
-  border-radius: 50%;
-  background: #ff3b30;
+.bottom-area {
+  padding: 0 24rpx calc(env(safe-area-inset-bottom) + 24rpx);
+  pointer-events: none;
 }
 
 .hint-text {
   text-align: center;
+  margin-bottom: 18rpx;
 }
 
 .hint-text-inner {
   font-size: 28rpx;
-  color: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.92);
+  padding: 14rpx 26rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
 }
 
-.bottom-controls {
-  padding: 0 40rpx;
+.bottom-bar {
+  height: 132rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(18px);
+  padding: 0 26rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  pointer-events: auto;
 }
 
 .side-btn {
   width: 92rpx;
   height: 92rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1rpx solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18rpx 50rpx rgba(0, 0, 0, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.side-btn--off {
-  background: rgba(82, 196, 26, 0.92);
-  box-shadow: 0 14rpx 28rpx rgba(82, 196, 26, 0.28), 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
+.side-btn--on {
+  background: rgba(82, 196, 26, 0.9);
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 18rpx 50rpx rgba(82, 196, 26, 0.22), 0 18rpx 50rpx rgba(0, 0, 0, 0.28);
 }
 
-.side-btn--on {
-  background: rgba(255, 77, 79, 0.92);
-  box-shadow: 0 14rpx 28rpx rgba(255, 77, 79, 0.28), 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
+.side-btn--off {
+  background: rgba(255, 77, 79, 0.9);
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 18rpx 50rpx rgba(255, 77, 79, 0.22), 0 18rpx 50rpx rgba(0, 0, 0, 0.28);
 }
 
 .side-btn-icon {
@@ -915,6 +874,7 @@ onUnload(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-top: -48rpx;
 }
 
 .shutter-ring {

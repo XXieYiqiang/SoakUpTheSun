@@ -9,7 +9,7 @@ export interface IRegisterForm {
   userAccount: string // 账号
   userPassword: string // 密码
   userName: string // 用户名
-  userAvatar: string // 头像 base64
+  userAvatar?: string // 头像 base64
   userProfile: string // 简介
 }
 

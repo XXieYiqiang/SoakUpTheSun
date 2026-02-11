@@ -186,6 +186,11 @@ export default defineConfig(({ command, mode }) => {
               changeOrigin: true,
               rewrite: path => path.replace('/api/audio', '/')
             },
+            '/picApi': {
+              target: 'http://47.120.60.61:10010',
+              changeOrigin: true,
+              rewrite: path => path.replace('/picApi', '')
+            },
             '^/api': {
               target: VITE_SERVER_BASEURL,
               changeOrigin: true,
