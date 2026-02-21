@@ -56,7 +56,7 @@ async function applyH5Constraints() {
       resizeMode: 'crop-and-scale',
     } as any)
   }
-  catch {}
+  catch { }
   // #endif
 }
 
@@ -81,7 +81,7 @@ function handleShutterLongpress() {
 function handleBack() {
   uni.navigateBack({
     delta: 1,
-    fail: () => {},
+    fail: () => { },
   })
 }
 
@@ -200,20 +200,20 @@ async function startCamera() {
       const firstCam = cameras[0]
       const videoConstraints = firstCam.deviceId
         ? {
-            deviceId: { exact: firstCam.deviceId },
-            width: { ideal: target.width },
-            height: { ideal: target.height },
-            aspectRatio: { ideal: target.aspectRatio },
-            frameRate: { ideal: 30, max: 60 },
-          }
+          deviceId: { exact: firstCam.deviceId },
+          width: { ideal: target.width },
+          height: { ideal: target.height },
+          aspectRatio: { ideal: target.aspectRatio },
+          frameRate: { ideal: 30, max: 60 },
+        }
         : {
-            width: { ideal: target.width },
-            height: { ideal: target.height },
-            aspectRatio: { ideal: target.aspectRatio },
-            frameRate: { ideal: 30, max: 60 },
-            facingMode: { ideal: 'environment' },
-          }
-      ;(videoConstraints as any).resizeMode = 'crop-and-scale'
+          width: { ideal: target.width },
+          height: { ideal: target.height },
+          aspectRatio: { ideal: target.aspectRatio },
+          frameRate: { ideal: 30, max: 60 },
+          facingMode: { ideal: 'environment' },
+        }
+        ; (videoConstraints as any).resizeMode = 'crop-and-scale'
       const constraints: MediaStreamConstraints = {
         video: videoConstraints as any,
         audio: false,
@@ -256,9 +256,9 @@ async function startCamera() {
     const videoEl = getNativeVideoEl()
     if (videoEl) {
       videoEl.muted = true
-      ;(videoEl as any).playsInline = true
+        ; (videoEl as any).playsInline = true
       videoEl.autoplay = true
-      ;(videoEl as any).srcObject = cameraStream
+        ; (videoEl as any).srcObject = cameraStream
       await applyH5Constraints()
       if (!h5ResizeHandler.value && typeof window !== 'undefined') {
         const handler = () => {
@@ -372,7 +372,7 @@ async function stopCamera() {
   }
   const videoEl = getNativeVideoEl()
   if (videoEl) {
-    ;(videoEl as any).srcObject = null
+    ; (videoEl as any).srcObject = null
   }
   // #endif
 
@@ -387,51 +387,49 @@ async function stopCamera() {
 
 import { getPictureAnalysisResponse, uploadPictureAnalysis } from '@/api/index'
 
-function pushCapturedImage(imageData: string) {
-  capturedImages.value.unshift(imageData)
+function revokePreviewUrl(url: string) {
+  // #ifdef H5
+  if (typeof URL !== 'undefined' && url && url.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+  }
+  // #endif
+}
+
+function pushCapturedImage(previewUrl: any, file?: Blob) {
+  capturedImages.value.unshift(previewUrl)
   if (capturedImages.value.length > 10) {
-    capturedImages.value.pop()
+    const removed = capturedImages.value.pop()
+    if (removed) {
+      revokePreviewUrl(removed)
+    }
   }
 
   // 自动上传分析
-  uploadPictureAnalysis(imageData, '自动截取图片分析').then(res => {
-    // res.data 假设包含 id 字段，根据实际接口返回调整
-    // 假设 res 结构为 { code: 0, data: { id: 123, ... } } 或 { code: 0, data: 123 }
-    // 如果直接返回 id，则 pictureId = res.data
-    // 如果返回对象，则 pictureId = res.data.id
-    
-    // 打印一下以便调试
+  const uploadInput: any = file || previewUrl
+  uploadPictureAnalysis(uploadInput, '自动截取图片分析').then((res: any) => {
     console.log('Upload response:', res)
-    
-    // 这里假设 res.data 是包含 id 的对象，或者根据用户之前的描述 "data": { "id": ... }
-    // 但用户之前提供的用户信息接口是 data: { id: ... }
-    // 对于上传接口，用户没有提供具体返回，但通常会返回 ID
-    
-    let pictureId = null
-    if (res && res.data) {
-       if (typeof res.data === 'object' && res.data.id) {
-         pictureId = res.data.id
-       } else if (typeof res.data === 'string' || typeof res.data === 'number') {
-         pictureId = res.data
-       }
+
+    let pictureId: string | number | null = null
+    if (typeof res === 'string' || typeof res === 'number') {
+      pictureId = res
     }
-    
-    if (pictureId) {
-      console.log('Got pictureId:', pictureId)
-      // 获取分析结果
-      getPictureAnalysisResponse(pictureId).then(analysisRes => {
-         console.log('Analysis result:', analysisRes)
-         if (analysisRes.code === 200 || analysisRes.code === 0) {
-             uni.showToast({
-               title: '分析结果已获取',
-               icon: 'success',
-               duration: 2000
-             })
-             // 这里可以处理 analysisRes.data，例如弹窗显示或播报
-         }
+    else if (res && typeof res === 'object') {
+      pictureId = res.id || res.pictureId || res.data?.id || res.data
+    }
+
+    if (!pictureId) {
+      return
+    }
+
+    getPictureAnalysisResponse(pictureId).then((analysisRes: any) => {
+      console.log('Analysis result:', analysisRes)
+      uni.showToast({
+        title: '分析结果已获取',
+        icon: 'success',
+        duration: 2000,
       })
-    }
-  }).catch(err => {
+    }).catch(() => { })
+  }).catch((err) => {
     console.error('图片上传分析失败:', err)
   })
 
@@ -440,6 +438,21 @@ function pushCapturedImage(imageData: string) {
     icon: 'success',
     duration: 1000,
   })
+}
+
+const captureInProgress = ref(false)
+
+function base64ToBlob(base64, mimeType) {
+  const byteString = atob(base64.split(',')[1]);
+
+  const ab = new ArrayBuffer(byteString.length);
+
+  const ia = new Uint8Array(ab);
+
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeType });
 }
 
 function captureImage() {
@@ -463,14 +476,15 @@ function captureImage() {
       return
     }
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
-    ;(canvas as any).width = vw * dpr
-    ;(canvas as any).height = vh * dpr
+      ; (canvas as any).width = vw * dpr
+      ; (canvas as any).height = vh * dpr
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, vw, vh)
     ctx.drawImage(video, 0, 0, vw / dpr, vh / dpr)
 
     const imageData = (canvas as any).toDataURL('image/jpeg', 1)
-    pushCapturedImage(imageData)
+    const file = new File([base64ToBlob(imageData, 'image/png')], 'image.png', { type: 'image/png' });
+    pushCapturedImage(imageData, file)
     // #endif
 
     // #ifdef APP-PLUS
@@ -504,6 +518,7 @@ function captureImage() {
     // #endif
   }
   catch (error) {
+    capturedImages.value.forEach(url => revokePreviewUrl(url))
     console.error('截取图片失败:', error)
     uni.showToast({
       title: '截取失败',
@@ -569,6 +584,9 @@ function saveImage(imageData: string) {
 }
 
 function clearImages() {
+  // #ifdef H5
+  capturedImages.value.forEach(url => revokePreviewUrl(url))
+  // #endif
   capturedImages.value = []
   uni.showToast({
     title: '已清空',
@@ -586,33 +604,13 @@ onUnload(() => {
   <view class="index-page">
     <view class="camera-container">
       <!-- #ifdef H5 -->
-      <video
-        id="cameraVideo"
-        ref="videoRef"
-        class="camera-video"
-        autoplay
-        playsinline
-        muted
-      />
-      <canvas
-        id="cameraCanvas"
-        ref="canvasRef"
-        class="camera-canvas"
-        style="display: none;"
-      />
+      <video id="cameraVideo" ref="videoRef" class="camera-video" autoplay playsinline muted />
+      <canvas id="cameraCanvas" ref="canvasRef" class="camera-canvas" style="display: none;" />
       <!-- #endif -->
 
       <!-- #ifdef APP-PLUS -->
-      <live-pusher
-        id="livePusher"
-        class="camera-video"
-        url=""
-        mode="FHD"
-        :muted="true"
-        :enable-camera="true"
-        :auto-focus="true"
-        :beauty="0"
-      />
+      <live-pusher id="livePusher" class="camera-video" url="" mode="FHD" :muted="true" :enable-camera="true"
+        :auto-focus="true" :beauty="0" />
       <!-- #endif -->
     </view>
 
@@ -629,86 +627,46 @@ onUnload(() => {
         </view>
 
         <view class="bottom-bar">
-          <view
-            class="side-btn"
-            :class="{ 'side-btn--on': isCameraActive, 'side-btn--off': !isCameraActive }"
-            @click="isCameraActive ? stopCamera() : startCamera()"
-          >
+          <view class="side-btn" :class="{ 'side-btn--on': isCameraActive, 'side-btn--off': !isCameraActive }"
+            @click="isCameraActive ? stopCamera() : startCamera()">
             <text class="side-btn-icon">⚡</text>
           </view>
 
-          <view
-            class="shutter"
-            :class="{
-              'shutter--capturing': isCapturing,
-              'shutter--idle': isCameraActive && !isCapturing,
-              'shutter--inactive': !isCameraActive,
-            }"
-            @click="handleShutterClick"
-            @longpress="handleShutterLongpress"
-          >
+          <view class="shutter" :class="{
+            'shutter--capturing': isCapturing,
+            'shutter--idle': isCameraActive && !isCapturing,
+            'shutter--inactive': !isCameraActive,
+          }" @click="handleShutterClick" @longpress="handleShutterLongpress">
             <view class="shutter-ring">
               <view class="shutter-core" />
             </view>
           </view>
 
-          <view
-            class="side-btn"
-            @click="isGalleryOpen = true"
-          >
-            <u-icon
-              name="list"
-              size="44"
-              color="rgba(255, 255, 255, 0.92)"
-            />
+          <view class="side-btn" @click="isGalleryOpen = true">
+            <u-icon name="list" size="44" color="rgba(255, 255, 255, 0.92)" />
           </view>
         </view>
       </view>
     </view>
 
-    <u-popup
-      v-model="isGalleryOpen"
-      mode="bottom"
-      :round="28"
-      :close-on-click-overlay="true"
-    >
+    <u-popup v-model="isGalleryOpen" mode="bottom" :round="28" :close-on-click-overlay="true">
       <view class="gallery-popup">
         <view class="images-header">
           <text class="images-title">截取的图片 ({{ capturedImages.length }}/10)</text>
-          <view
-            class="clear-btn"
-            @click="clearImages"
-          >
+          <view class="clear-btn" @click="clearImages">
             <text>清空</text>
           </view>
         </view>
 
-        <scroll-view
-          class="images-scroll"
-          scroll-y
-        >
-          <view
-            v-for="(image, index) in capturedImages"
-            :key="index"
-            class="image-item"
-          >
-            <image
-              class="image-preview"
-              :src="image"
-              mode="widthFix"
-            />
-            <view
-              class="image-save-btn"
-              @click="saveImage(image)"
-            >
+        <scroll-view class="images-scroll" scroll-y>
+          <view v-for="(image, index) in capturedImages" :key="index" class="image-item">
+            <image class="image-preview" :src="image" mode="widthFix" />
+            <view class="image-save-btn" @click="saveImage(image)">
               <text class="image-save-text">保存</text>
             </view>
           </view>
 
-          <view
-            v-if="capturedImages.length === 0"
-            class="empty-state"
-          >
+          <view v-if="capturedImages.length === 0" class="empty-state">
             <text class="empty-text">暂无截取的图片</text>
           </view>
         </scroll-view>

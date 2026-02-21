@@ -186,7 +186,7 @@ export default defineConfig(({ command, mode }) => {
               changeOrigin: true,
               rewrite: path => path.replace('/api/audio', '/')
             },
-            '/picApi': {
+            '/api/picApi': {
               target: 'http://47.120.60.61:10010',
               changeOrigin: true,
               rewrite: path => path.replace('/picApi', '')
